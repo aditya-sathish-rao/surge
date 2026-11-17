@@ -163,6 +163,10 @@ Run `make project` again. The bundle ID prefix is `SURGE_BUNDLE_ID_PREFIX` in `C
 
 Early milestones run on mock data, so you can watch the interface take shape before any live ingestion exists.
 
+### Fonts
+
+The app and widget bundle the variable Geist Sans font (SIL Open Font License 1.1, from [vercel/geist-font](https://github.com/vercel/geist-font)) and Fira Code (SIL Open Font License 1.1, from [tonsky/FiraCode](https://github.com/tonsky/FiraCode)). Each licence text ships next to its font in `App/SurgeMenuBarApp/Fonts/` and `Widget/SurgeWidget/Fonts/`.
+
 ### Tests and checks
 
 ```sh
