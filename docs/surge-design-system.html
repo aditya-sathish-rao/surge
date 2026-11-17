@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Surge — Design System v0.1</title>
+<style>
+/* =====================================================================
+   SPEC PAGE CHROME (the document itself, follows system appearance)
+   ===================================================================== */
+:root{
+  --doc-bg:#FBFBFD; --doc-ink:#1D1D1F; --doc-ink2:#6E6E73; --doc-rule:rgba(0,0,0,.1);
+  --doc-card:#FFFFFF; --doc-code:#F2F2F5;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro",system-ui,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{--doc-bg:#151516;--doc-ink:#F5F5F7;--doc-ink2:#A1A1A6;--doc-rule:rgba(255,255,255,.12);--doc-card:#1E1E20;--doc-code:#232326;}
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--doc-bg);color:var(--doc-ink);font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 32px}
+@media print{nav.toc{display:none}}
+nav.toc{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--doc-bg) 82%,transparent);backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);border-bottom:1px solid var(--doc-rule)}
+nav.toc .wrap{display:flex;gap:18px;align-items:center;height:48px;overflow-x:auto;white-space:nowrap;font-size:13px}
+nav.toc a{color:var(--doc-ink2);text-decoration:none}
+nav.toc a:hover,nav.toc a:focus-visible{color:var(--doc-ink)}
+nav.toc .brand{font-weight:600;color:var(--doc-ink);margin-right:8px}
+header.hero{padding:72px 0 40px}
+.eyebrow{font-size:13px;color:var(--doc-ink2);letter-spacing:.01em}
+h1{font-size:44px;line-height:1.08;letter-spacing:-.02em;margin:10px 0 16px;font-weight:700;font-stretch:125%}
+h2{font-size:28px;letter-spacing:-.015em;margin:0 0 6px;font-weight:700}
+h3{font-size:17px;margin:32px 0 8px;font-weight:600}
+h4{font-size:14px;margin:20px 0 6px;font-weight:600}
+p{margin:0 0 12px;max-width:72ch}
+.lede{font-size:19px;line-height:1.5;color:var(--doc-ink);max-width:62ch}
+.muted{color:var(--doc-ink2)}
+section{padding:56px 0;border-top:1px solid var(--doc-rule)}
+section > .wrap > .sub{color:var(--doc-ink2);margin-bottom:24px;max-width:72ch}
+code,.mono{font-family:var(--mono);font-size:.88em}
+code{background:var(--doc-code);padding:1px 5px;border-radius:5px}
+pre{background:var(--doc-code);padding:16px 18px;border-radius:12px;overflow:auto;font:12.5px/1.55 var(--mono);margin:12px 0 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:8px 0 4px}
+th,td{text-align:left;padding:9px 12px 9px 0;border-bottom:1px solid var(--doc-rule);vertical-align:top}
+th{font-weight:600;color:var(--doc-ink2);font-size:12.5px}
+td.num,th.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.cite{font-family:var(--mono);font-size:12px;color:var(--doc-ink2);white-space:nowrap}
+blockquote{margin:8px 0 12px;padding:2px 0 2px 14px;border-left:3px solid var(--doc-rule);color:var(--doc-ink2);font-size:14px;max-width:72ch}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
+.card{background:var(--doc-card);border:1px solid var(--doc-rule);border-radius:16px;padding:20px 22px}
+.card h4{margin-top:0}
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:1px 7px;border-radius:6px;vertical-align:1px;margin-right:6px}
+.t-crit{background:#FDE7E9;color:#A1001B}.t-high{background:#FFF0DD;color:#8A4200}.t-med{background:#ECECF0;color:#3A3A3C}.t-low{background:#F2F2F5;color:#6E6E73}
+@media (prefers-color-scheme:dark){.t-crit{background:#4A1418;color:#FF9C96}.t-high{background:#432A0E;color:#FFC266}.t-med{background:#333336;color:#D1D1D6}.t-low{background:#2A2A2C;color:#A1A1A6}}
+.finding{padding:14px 0;border-bottom:1px solid var(--doc-rule)}
+.finding b.what{display:block;margin-bottom:4px}
+.finding p{font-size:14px;margin:2px 0}
+.principles{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px;margin-top:28px}
+.principle .n{font-size:13px;color:var(--doc-ink2);margin-bottom:6px}
+.principle h4{font-size:17px;margin:0 0 6px}
+.principle p{font-size:14px;color:var(--doc-ink2)}
+.stage{border-radius:20px;padding:28px;display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;justify-content:center}
+.stage.wall-l{background:linear-gradient(135deg,#C9D6E8 0%,#E8D9CF 50%,#D6E2D3 100%)}
+.stage.wall-d{background:linear-gradient(135deg,#1B2333 0%,#2B2230 50%,#1C2A26 100%)}
+.cap{font-size:12px;color:var(--doc-ink2);text-align:center;margin-top:10px}
+.figure{display:flex;flex-direction:column;align-items:center}
+.ascii{font:12px/1.35 var(--mono);white-space:pre;background:var(--doc-code);padding:14px 16px;border-radius:12px;overflow:auto}
+
+/* =====================================================================
+   SURGE TOKENS — reference values for mockups.
+   Production: map to system semantic colors + asset-catalog Color Sets.
+   ===================================================================== */
+.theme-light{
+  --s-base:#F6F6F6;      /* popover opaque fallback (system glass in production) */
+  --s-raised:#FFFFFF;    /* grouped content */
+  --s-widget:#FFFFFF;    /* widget containerBackground */
+  --t1:#1D1D1F; --t2:#6E6E73; --t3:#8E8E93;
+  --sep:rgba(0,0,0,.10); --fill:rgba(0,0,0,.06); --fill2:rgba(0,0,0,.04);
+  --track:rgba(0,0,0,.09); --meter:#3A3A3C;
+  --alert:#FF3B30; --alert-ink:#C8102E; --alert-tint:rgba(255,59,48,.10);
+  --caution:#C96A00; --caution-ink:#9A4D00; --caution-tint:rgba(201,106,0,.11);
+  --accent:#0A64D6; /* stands in for the user's system accent */
+  --shadow:0 18px 50px -12px rgba(0,0,0,.28),0 0 0 .5px rgba(0,0,0,.18);
+  color:var(--t1);
+}
+.theme-dark{
+  --s-base:#2A2A2C; --s-raised:#333336; --s-widget:#1C1C1E;
+  --t1:#F5F5F7; --t2:#A1A1A6; --t3:#7C7C80;
+  --sep:rgba(255,255,255,.12); --fill:rgba(255,255,255,.08); --fill2:rgba(255,255,255,.05);
+  --track:rgba(255,255,255,.14); --meter:#C7C7CC;
+  --alert:#FF453A; --alert-ink:#FF7B72; --alert-tint:rgba(255,69,58,.16);
+  --caution:#FF9F0A; --caution-ink:#FFB340; --caution-tint:rgba(255,159,10,.14);
+  --accent:#3B8EF0;
+  --shadow:0 18px 50px -12px rgba(0,0,0,.6),0 0 0 .5px rgba(255,255,255,.14);
+  color:var(--t1);
+}
+
+/* type scale — macOS built-in styles (typography.md › macOS built-in text styles) */
+.ty{font-family:var(--sans)}
+.readout{font-weight:600;font-stretch:125%;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.ty-readout-xl{font-size:28px;line-height:32px}
+.ty-readout-l{font-size:22px;line-height:26px}
+.ty-title3{font-size:15px;line-height:20px;font-weight:600}
+.ty-headline{font-size:13px;line-height:16px;font-weight:700}
+.ty-body{font-size:13px;line-height:16px}
+.ty-callout{font-size:12px;line-height:15px}
+.ty-sub{font-size:11px;line-height:14px}
+.ty-foot{font-size:10px;line-height:13px}
+.ty-mono{font-family:var(--mono);font-size:11px;line-height:14px}
+.tn{font-variant-numeric:tabular-nums}
+.c1{color:var(--t1)}.c2{color:var(--t2)}.c3{color:var(--t3)}
+.ca{color:var(--alert-ink)}.cc{color:var(--caution-ink)}
+
+/* =====================================================================
+   SIGNATURE: THE FUSE (context meter)
+   ===================================================================== */
+.fuse{position:relative;height:6px;border-radius:3px;background:var(--track);overflow:hidden;flex:1;min-width:40px}
+.fuse > i{position:absolute;inset:0 auto 0 0;border-radius:3px;background:var(--meter)}
+.fuse.high > i{background:var(--caution)}
+.fuse.limit > i{background:var(--alert)}
+.fuse.tripped > i{background:repeating-linear-gradient(-45deg,var(--alert) 0 3px,transparent 3px 6px);box-shadow:inset 0 0 0 1px var(--alert)}
+.fuse.idle > i{background:var(--t3)}
+/* threshold notches at 70% and 90% cut through the track */
+.fuse::before,.fuse::after{content:"";position:absolute;top:0;bottom:0;width:1.5px;background:var(--s-raised);z-index:2}
+.fuse::before{left:70%}.fuse::after{left:90%}
+.on-base .fuse::before,.on-base .fuse::after{background:var(--s-base)}
+.on-widget .fuse::before,.on-widget .fuse::after{background:var(--s-widget)}
+.fuse.lg{height:10px;border-radius:5px}.fuse.lg > i{border-radius:5px}
+.fuse.lg.tripped > i{background:repeating-linear-gradient(-45deg,var(--alert) 0 4px,transparent 4px 8px)}
+
+/* symbol stand-ins (production: SF Symbols) */
+.sym{display:inline-flex;width:14px;height:14px;flex:none;align-items:center;justify-content:center}
+.sym svg{width:100%;height:100%;display:block}
+.sym.sm{width:12px;height:12px}.sym.lg{width:18px;height:18px}
+
+/* =====================================================================
+   COMPONENTS
+   ===================================================================== */
+.pop{width:360px;border-radius:16px;background:var(--s-base);box-shadow:var(--shadow);font-family:var(--sans);position:relative;overflow:hidden}
+.pop-head{padding:14px 16px 10px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.pop-head .lbl{font-size:11px;line-height:14px;color:var(--t2)}
+.status-line{display:flex;align-items:center;gap:6px;font-size:12px;line-height:15px;font-weight:600}
+.iconbtn{width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:var(--t2)}
+.iconbtn:hover{background:var(--fill)}
+.seg{margin:0 16px 10px;display:grid;grid-template-columns:repeat(3,1fr);background:var(--fill);border-radius:7px;padding:2px;font-size:12px;line-height:20px}
+.seg span{text-align:center;border-radius:5px;color:var(--t1)}
+.seg span.on{background:var(--s-raised);box-shadow:0 .5px 1.5px rgba(0,0,0,.18);font-weight:600}
+.theme-dark .seg span.on{background:#5A5A5E}
+.pop-body{padding:0 10px 10px;display:flex;flex-direction:column;gap:8px}
+.banner{display:flex;gap:10px;align-items:center;padding:9px 10px;border-radius:10px;background:var(--alert-tint)}
+.banner.caution{background:var(--caution-tint)}
+.banner .txt{flex:1;min-width:0}
+.banner .t{font-size:12px;line-height:15px;font-weight:600}
+.banner .s{font-size:11px;line-height:14px;color:var(--t2)}
+.btn{font:500 12px/20px var(--sans);padding:0 10px;border-radius:6px;background:var(--s-raised);color:var(--t1);box-shadow:0 0 0 .5px var(--sep),0 .5px 1px rgba(0,0,0,.12);white-space:nowrap;min-height:22px;display:inline-flex;align-items:center}
+.theme-dark .btn{background:#4A4A4E}
+.btn.pri{background:var(--accent);color:#fff;box-shadow:none}
+.group{background:var(--s-raised);border-radius:10px;padding:4px 0}
+.group-h{display:flex;align-items:center;gap:6px;padding:6px 10px 4px}
+.group-h .nm{font-size:13px;line-height:16px;font-weight:700}
+.group-h .path{font:11px/14px var(--mono);color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.group-h .amt{font-size:12px;color:var(--t2)}
+.row{display:grid;grid-template-columns:16px 1fr auto;column-gap:8px;row-gap:5px;padding:7px 10px;align-items:center}
+.row + .row{border-top:.5px solid var(--sep)}
+.row .nm{font-size:13px;line-height:16px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .meta{font-size:11px;line-height:14px;color:var(--t2)}
+.row .right{text-align:right;font-size:12px;line-height:15px;font-variant-numeric:tabular-nums}
+.row .ctx{grid-column:2/4;display:flex;align-items:center;gap:8px}
+.row .ctx .pct{font-size:11px;line-height:14px;color:var(--t2);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:92px;text-align:right}
+.row.worker{grid-template-columns:16px 16px 1fr auto;padding-left:10px}
+.row.worker .ctx{grid-column:3/5}
+.branch{width:16px;height:100%;position:relative;grid-row:1/3}
+.branch::before{content:"";position:absolute;left:7px;top:-8px;bottom:50%;border-left:1px solid var(--sep);border-bottom:1px solid var(--sep);width:7px;border-bottom-left-radius:5px}
+.branch.mid::after{content:"";position:absolute;left:7px;top:0;bottom:-8px;border-left:1px solid var(--sep)}
+.foot{border-top:.5px solid var(--sep);padding:10px 16px 12px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.foot .k{font-size:11px;line-height:14px;color:var(--t2)}
+.foot .v{font-size:13px;line-height:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.minibar{height:4px;border-radius:2px;background:var(--track);margin-top:4px;overflow:hidden}
+.minibar i{display:block;height:100%;background:var(--meter);border-radius:2px}
+.minibar.c i{background:var(--caution)}
+.popnub{width:20px;height:10px;margin:0 auto -1px;position:relative}
+.popnub::before{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;background:var(--s-base);transform:rotate(45deg);border-radius:3px;box-shadow:-.5px -.5px 0 rgba(0,0,0,.12)}
+
+/* menu bar mock */
+.mbar{height:24px;width:100%;max-width:560px;border-radius:8px;display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 12px;font:500 13px/24px var(--sans)}
+.mbar.l{background:rgba(246,246,246,.72);color:#1D1D1F;box-shadow:0 0 0 .5px rgba(0,0,0,.1)}
+.mbar.d{background:rgba(30,30,32,.72);color:#F5F5F7;box-shadow:0 0 0 .5px rgba(255,255,255,.1)}
+.mbar .it{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 6px;border-radius:5px;font-variant-numeric:tabular-nums}
+.mbar .it.sel{background:rgba(0,0,0,.12)}
+.mbar.d .it.sel{background:rgba(255,255,255,.18)}
+.mbar .ghost{opacity:.55}
+
+/* widgets */
+.w{border-radius:22px;background:var(--s-widget);box-shadow:var(--shadow);font-family:var(--sans);padding:14px;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.w.s{width:170px;height:170px}
+.w.m{width:364px;height:170px}
+.w.l{width:364px;height:382px}
+.w .hdr{display:flex;align-items:center;justify-content:space-between;font-size:11px;line-height:14px;color:var(--t2);font-weight:600}
+.w .tile{background:var(--fill2);border-radius:12px;padding:8px 10px}
+.vibrant{filter:grayscale(1)}
+.vibrant .w{background:rgba(255,255,255,.18);box-shadow:0 0 0 .5px rgba(255,255,255,.25);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px)}
+.vibrant .theme-dark,.vibrant.theme-dark{--t1:#FFFFFF;--t2:rgba(255,255,255,.72);--t3:rgba(255,255,255,.5);--meter:#FFFFFF;--track:rgba(255,255,255,.25);--alert:#FFFFFF;--caution:#FFFFFF;--alert-ink:#FFFFFF;--caution-ink:#FFFFFF;--s-widget:transparent;--fill2:rgba(255,255,255,.1)}
+
+/* swatches */
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.swatch{border:1px solid var(--doc-rule);border-radius:14px;overflow:hidden;background:var(--doc-card)}
+.swatch .chips{display:grid;grid-template-columns:1fr 1fr;height:74px}
+.swatch .chips div{display:flex;align-items:flex-end;padding:8px 10px;font:600 12px/1 var(--mono)}
+.swatch .meta{padding:10px 12px 12px;font-size:12.5px}
+.swatch .meta b{font-size:13.5px}
+.swatch .meta .r{color:var(--doc-ink2);font-family:var(--mono);font-size:11.5px;margin-top:4px;line-height:1.5}
+
+/* charts */
+.chart{display:block;width:100%}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;line-height:14px;color:var(--t2)}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:0}
+
+@media (prefers-reduced-motion:no-preference){
+  .demo-trip > i{transition:background .3s ease}
+}
+</style>
+</head>
+<body>
+<!-- Symbol stand-ins. Production uses the SF Symbols named in the Status table. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-bolt" viewBox="0 0 16 16"><path fill="currentColor" d="M9.2 1.2 3.4 9h4l-1 5.8L12.6 7h-4l.6-5.8z"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 16 16"><path fill="currentColor" d="M7.5 1.5c.6 0 1 .4 1 1V7h.6V3c0-.6.4-1 1-1s1 .4 1 1v4.3h.5V4.4c0-.6.4-1 1-1s1 .4 1 1v5.4c0 2.8-2 4.7-4.7 4.7-1.7 0-2.9-.7-3.9-2L2.6 9.8c-.4-.5-.3-1.1.1-1.4.5-.4 1.1-.3 1.5.1l1.3 1.4V3c0-.6.4-1 1-1 .3 0 .6.1.7.3.1-.5.3-.8.3-.8z"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 16 16"><path fill="currentColor" d="M8 1.3c.5 0 .9.2 1.2.7l5.9 10.4c.5.9-.1 2-1.2 2H2.1c-1 0-1.7-1.1-1.2-2L6.8 2c.3-.5.7-.7 1.2-.7z"/><path fill="var(--sym-cut,#fff)" d="M7.2 5h1.6l-.2 4.6H7.4zM8 10.6a.95.95 0 1 1 0 1.9.95.95 0 0 1 0-1.9z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 16 16"><rect x="3.5" y="2.5" width="3" height="11" rx="1" fill="currentColor"/><rect x="9.5" y="2.5" width="3" height="11" rx="1" fill="currentColor"/></symbol>
+  <symbol id="i-compress" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M2.5 8h11M8 1.8v3.6M6.2 3.8 8 5.4l1.8-1.6M8 14.2v-3.6M6.2 12.2 8 10.6l1.8 1.6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M3 8.5 6.4 12 13 4.5"/></symbol>
+  <symbol id="i-boltslash" viewBox="0 0 16 16"><path fill="currentColor" opacity=".55" d="M9.2 1.2 3.4 9h4l-1 5.8L12.6 7h-4l.6-5.8z"/><path stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M2.5 2.5l11 11"/></symbol>
+  <symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1.4" fill="currentColor"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><circle cx="12.5" cy="8" r="1.4" fill="currentColor"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 6l4 4 4-4"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M2.5 4.5h11v9h-11zM2.5 7h11"/><path stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M9.5 1.5h4v4M13.5 1.5 9 6"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 16 16"><rect x="1.8" y="3.5" width="12.4" height="9.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="8.3" r="1" fill="currentColor"/></symbol>
+</svg>
+
+<nav class="toc" aria-label="Sections">
+  <div class="wrap">
+    <span class="brand">Surge</span>
+    <a href="#thesis">Thesis</a>
+    <a href="#review">Wireframe review</a>
+    <a href="#color">Color</a>
+    <a href="#type">Type</a>
+    <a href="#layout">Layout</a>
+    <a href="#status">Status</a>
+    <a href="#fuse">The Fuse</a>
+    <a href="#components">Components</a>
+    <a href="#menubar">Menu bar</a>
+    <a href="#popover">Popover</a>
+    <a href="#widgets">Widgets</a>
+    <a href="#motion">Motion</a>
+    <a href="#a11y">Accessibility</a>
+    <a href="#writing">Writing</a>
+    <a href="#swiftui">SwiftUI</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Design System v0.1 · macOS 26+ · SwiftUI · November 2026</div>
+    <h1>Surge</h1>
+    <p class="lede">A menu bar instrument for coding agents. It shows every orchestrator and worker you have running: how full each context window is, how fast tokens are flowing, what it's costing, and which agent has stopped moving.</p>
+    <p class="muted" style="margin-top:18px;max-width:70ch">This document turns the AgentPulse wireframe and the macOS blueprint into one system for three surfaces: the menu bar extra, the popover dashboard (which can be detached as a floating panel), and desktop widgets. Every rule cites the Apple Human Interface Guidelines page it comes from. Anything without a citation is a design judgment and is labeled as one.</p>
+  </div>
+</header>
+
+<!-- ================================================================== -->
+<section id="thesis">
+  <div class="wrap">
+    <h2>Thesis</h2>
+    <p class="sub">Quiet when everything is fine, loud only when an agent needs you.</p>
+    <p>People run Surge so they don't have to watch terminals. Most of the time the right answer to "is anything wrong?" is no, and the interface should say that calmly, in grey. Color, motion, and notifications are held back for the moments that need a decision: an agent that has stalled, an agent waiting for permission, a context window about to compact, a wallet running dry. Because the rest of the interface is grey, red and orange always mean something.</p>
+    <div class="principles">
+      <div class="principle card"><div class="n">Principle 1</div><h4>Status owns color</h4><p>Red means "needs you now." Orange means "needs you soon." Nothing else uses those hues: not providers, not charts, not branding. Controls use the system accent color you picked on your Mac.</p></div>
+      <div class="principle card"><div class="n">Principle 2</div><h4>One meter, everywhere</h4><p>The Fuse, the context meter, looks the same in the menu bar, the popover, the panel, and widgets, so it only has to be learned once (<span class="cite">charting-data.md › Designing effective charts</span>).</p></div>
+      <div class="principle card"><div class="n">Principle 3</div><h4>Meaning survives grayscale</h4><p>Desktop widgets on the Mac turn monochrome in vibrant mode. Every state has a shape, a symbol, and a word as well as a color (<span class="cite">widgets.md › Using color</span>).</p></div>
+      <div class="principle card"><div class="n">Principle 4</div><h4>Glance, then one click</h4><p>Every alert sits next to the thing it's about and comes with the single action that resolves it. Deeper analysis lives in the popover, not in widgets (<span class="cite">feedback.md</span>, <span class="cite">widgets.md › Adding interactivity</span>).</p></div>
+    </div>
+    <h3>Signature</h3>
+    <p><b>The Fuse.</b> Every agent's context window is drawn as a capsule with two notches cut at 70% and 90%. When an agent stalls, the fill freezes and turns into a red hatch: a tripped fuse. The idea comes from the product's name: tokens are current, the context window is capacity, a stalled agent is a tripped breaker. Everything around the Fuse stays quiet so it carries the identity on its own (design judgment, consistent with <span class="cite">branding.md › Best practices</span>: "Ensure branding always defers to content").</p>
+    <h3>What this direction rejects, and why</h3>
+    <p>The wireframe's look (near-black canvas, grid background, ambient glow, one emerald accent) is one of the most common defaults in generated developer tools. Nothing about it comes from this product. A second draft of this system used a violet "ion" brand color for throughput. I dropped it because violet has become the stock "AI product" color and because it would compete with status. The result is a graphite instrument with system materials, where the only color appears when something goes wrong.</p>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="review">
+  <div class="wrap">
+    <h2>Wireframe review</h2>
+    <p class="sub">An audit of <code>surge-wireframe.html</code> (AgentPulse × herdr). I read it from the source because it loads Tailwind and its fonts from a CDN, so contrast figures are computed from its hex values.</p>
+    <div class="card" style="margin-bottom:20px">
+      <h4>Summary — Critical issues</h4>
+      <p style="font-size:14px">The wireframe has the right data model: an orchestrator→worker hierarchy, context pressure, stall detection, and spend. It also has two good instincts worth keeping: a hatch pattern for stalled agents and tabular numerals. But it's framed as an <b>iOS</b> home-screen widget when the product is a <b>macOS</b> menu bar app. Its 9 px text is below the macOS minimum. Status depends on color in places where macOS desktop widgets remove color. And it packs a three-tab app into a widget. As it stands, it would be remembered for its look, not for anything specific to Surge.</p>
+    </div>
+
+    <h3>Critical</h3>
+    <div class="finding"><b class="what"><span class="tag t-crit">Critical</span>Text is set at 9–10 px throughout the widget</b>
+      <p><b>Why:</b> <span class="cite">typography.md › Ensuring legibility</span>: the macOS minimum is 10 pt. <span class="cite">widgets.md › Displaying text in widgets</span>: "In general, display text using fonts at 11 points or larger."</p>
+      <p><b>Fix:</b> Widget text is 11 pt minimum. In the popover, 11 pt (Subheadline) for metadata, 10 pt only for chart axis ticks. See <a href="#type">Type</a>.</p></div>
+    <div class="finding"><b class="what"><span class="tag t-crit">Critical</span>Secondary labels fail contrast: <code>zinc-500 #71717A</code> on card <code>#16181D</code> is 3.67:1</b>
+      <p><b>Why:</b> <span class="cite">accessibility.md › Vision</span>: text up to 17 pt needs 4.5:1. <code>zinc-600 #52525B</code> (used in a few places) is 2.30:1.</p>
+      <p><b>Fix:</b> Secondary text is <code>#6E6E73</code> on light (5.07:1 on raised) and <code>#A1A1A6</code> on dark (4.90:1 on raised). In production, use <code>.secondary</code>.</p></div>
+    <div class="finding"><b class="what"><span class="tag t-crit">Critical</span>Providers and states are told apart by hue alone</b>
+      <p>Model dots, colored progress fills, and concurrency bars encode meaning only in color. On Mac, desktop widgets render in the vibrant mode, which "desaturates text, images, and gauges", so the provider colors collapse to the same grey.</p>
+      <p><b>Why:</b> <span class="cite">accessibility.md › Vision</span>: "Convey information with more than color alone." <span class="cite">widgets.md › Rendering modes</span> (Mac: vibrant on Desktop).</p>
+      <p><b>Fix:</b> Providers get a text label. Status gets an SF Symbol plus a word plus a shape change in the Fuse. Charts use direct labels and separators (<span class="cite">charts.md › Color</span>).</p></div>
+    <div class="finding"><b class="what"><span class="tag t-crit">Critical</span>Infinite pulsing, ping, and border-flash animations</b>
+      <p>The <code>radarPulse</code>, <code>animate-ping</code>, and <code>stuckBorderPulse</code> animations loop forever, and none of them responds to Reduce Motion.</p>
+      <p><b>Why:</b> <span class="cite">accessibility.md › Cognitive</span>: "Be cautious with fast-moving and blinking animations." <span class="cite">motion.md</span>: "generally avoid adding motion to UI interactions that occur frequently."</p>
+      <p><b>Fix:</b> No looping animation anywhere. A single 0.3 s transition when state changes. See <a href="#motion">Motion</a>.</p></div>
+
+    <h3>Improvements</h3>
+    <div class="finding"><b class="what"><span class="tag t-high">High</span>Wrong platform frame</b>
+      <p>It shows a 9:41 status bar, "iOS 18 WidgetKit", and iPhone widget sizes. The blueprint targets a non-sandboxed macOS app with <code>MenuBarExtra</code> and desktop widgets, and the menu bar surface isn't drawn at all.</p>
+      <p><b>Fix:</b> Design for the menu bar extra, the popover and detached panel, and Mac desktop widgets. Watch the 24 pt menu bar height (<span class="cite">the-menu-bar.md › Menu bar extras</span>).</p></div>
+    <div class="finding"><b class="what"><span class="tag t-high">High</span>The widget is a small app: three tabs, expandable chips, scrolling lists</b>
+      <p><b>Why:</b> <span class="cite">widgets.md › Adding interactivity</span>: "avoid creating app-like layouts in your widgets" and "reserve complexity for your app."</p>
+      <p><b>Fix:</b> Ship two widget kinds, <b>Agents</b> and <b>Spend</b>. Each has one job, uses no tabs, and has at most one button (Nudge Agent, shown only when something has stalled). The tabs move into the popover.</p></div>
+    <div class="finding"><b class="what"><span class="tag t-high">High</span>Assumes per-second updates</b>
+      <p>The wireframe ticks uptime every second. Widgets "don't support continuous, real-time updates."</p>
+      <p><b>Fix:</b> Show uptime and stall time with <code>Text(date, style: .timer)</code> so the system keeps them current (<span class="cite">widgets.md › Updating widget content</span>). Reload the timeline when an agent stalls or recovers, and show "Updated 2 min ago" when data is stale.</p></div>
+    <div class="finding"><b class="what"><span class="tag t-high">High</span>Color means several things at once</b>
+      <p>Green means OpenAI and also "healthy/optimal." Cyan means DeepSeek and also "current concurrency bar." Amber means "high context" and also half of the stalled hatch.</p>
+      <p><b>Why:</b> <span class="cite">color.md › Best practices</span>: "Avoid using the same color to mean different things."</p>
+      <p><b>Fix:</b> Red and orange are reserved for status. There is no green state: healthy is the default and gets no color.</p></div>
+    <div class="finding"><b class="what"><span class="tag t-high">High</span>Dark only, with a hand-drawn blur on the widget body</b>
+      <p><b>Why:</b> <span class="cite">dark-mode.md</span>: "Ensure that your app looks good in both appearance modes." <span class="cite">liquid-glass.md › The two layers</span>: glass belongs only to the functional layer, and the widget body is content.</p>
+      <p><b>Fix:</b> Use system backgrounds (<code>containerBackground</code>) for widgets and system popover glass for the popover. Content cards are opaque fills. Light and dark tokens are defined below.</p></div>
+    <div class="finding"><b class="what"><span class="tag t-med">Medium</span>Jargon and mixed capitalization</b>
+      <p>"herdr", "Swarm", "Long-horizon mission", "DAG milestones", "lanes", "COMPACT SOON", "OPTIMAL", all-caps mono eyebrows, plus title case and sentence case mixed together.</p>
+      <p><b>Why:</b> <span class="cite">writing.md › Best practices</span>: "Adopt capitalization rules that align with your app's style, then apply them consistently," and "Prioritize clarity and avoid the temptation to be too cute or clever with your labels."</p>
+      <p><b>Fix:</b> Use the vocabulary in <a href="#writing">Writing</a>: Orchestrator, Worker, Working, Waiting for you, Stalled.</p></div>
+    <div class="finding"><b class="what"><span class="tag t-med">Medium</span>Monospace is used as the default label face</b>
+      <p><b>Why:</b> <span class="cite">typography.md</span>: "Minimize the number of typefaces you use." In the wireframe, mono is doing the job of hierarchy.</p>
+      <p><b>Fix:</b> SF Pro everywhere, with <code>.monospacedDigit()</code> for numbers. SF Mono only for things you would type in a terminal: paths, session IDs, model IDs.</p></div>
+
+    <h3>What works — keep it</h3>
+    <ul style="font-size:14px;max-width:72ch;padding-left:18px">
+      <li>A hatched fill for a stalled agent. A pattern survives grayscale, and it becomes the Fuse's tripped state.</li>
+      <li>Tabular numerals on every changing value.</li>
+      <li>The Nudge action sits on the stalled row itself, not in an alert (<span class="cite">feedback.md</span>: "Consider integrating status feedback into your interface").</li>
+      <li>Context thresholds come with words, not just colors ("HIGH CTX"). Keep the idea, change the words.</li>
+      <li>The stacked cost bar has 2 px gaps between segments (<span class="cite">charts.md › Color</span>: "adding visual separation between contiguous areas of color").</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="color">
+  <div class="wrap">
+    <h2>Color</h2>
+    <p class="sub">Eleven tokens: three surfaces, three text levels, one meter, two status signals (each as a fill and an ink), and the system accent. Surfaces and text map to system semantic colors. Only the status signals are custom asset-catalog Color Sets, because system orange and red on light backgrounds can't pass contrast as text (orange is 2.03:1 on <code>#F6F6F6</code>).</p>
+
+    <h3>Rules</h3>
+    <table>
+      <tr><th style="width:34%">Rule</th><th>Source</th></tr>
+      <tr><td>Red means "needs you now." Orange means "needs you soon." Neither hue is used for anything else.</td><td><span class="cite">color.md › Best practices</span>: "Avoid using the same color to mean different things."</td></tr>
+      <tr><td>Healthy has no color. A working agent is drawn in the primary text color.</td><td>Design judgment, following from the thesis.</td></tr>
+      <tr><td>No brand hue inside the UI. Buttons, selection, and the segmented control use the accent color people chose in System Settings.</td><td><span class="cite">color.md › App accent colors</span>, <span class="cite">branding.md › Best practices</span>: "Apply your app's accent color judiciously."</td></tr>
+      <tr><td>Status fills (graphics) need at least 3:1 against their surface. Status inks (text) need at least 4.5:1.</td><td><span class="cite">accessibility.md › Vision</span></td></tr>
+      <tr><td>Every custom color ships with light, dark, and Increase Contrast variants.</td><td><span class="cite">color.md › Best practices</span>: "supply light and dark variants, and an increased contrast option for each variant."</td></tr>
+      <tr><td>Providers (Claude, DeepSeek, OpenRouter) get no color. They're identified by name, and in charts by direct labels and grey steps.</td><td><span class="cite">charts.md › Color</span>, <span class="cite">widgets.md › Using color</span></td></tr>
+    </table>
+
+    <h3>Surfaces &amp; text</h3>
+    <p class="muted" style="font-size:14px">The hex values below are reference values for mockups. Don't hard-code them (<span class="cite">color.md › System colors</span>: "Avoid hard-coding system color values in your app").</p>
+    <div class="sw">
+      <div class="swatch"><div class="chips"><div style="background:#F6F6F6;color:#6E6E73">#F6F6F6</div><div style="background:#2A2A2C;color:#A1A1A6">#2A2A2C</div></div><div class="meta"><b>surface.base</b><div>Popover and panel body. In production this is the system popover material. Opaque values are the Reduce Transparency fallback.</div><div class="r">SwiftUI: system (MenuBarExtra .window)</div></div></div>
+      <div class="swatch"><div class="chips"><div style="background:#FFFFFF;color:#6E6E73">#FFFFFF</div><div style="background:#333336;color:#A1A1A6">#333336</div></div><div class="meta"><b>surface.raised</b><div>Workspace groups and tiles inside the popover. Opaque, never glass.</div><div class="r">SwiftUI: .background(.background.secondary) / .fill.quinary</div></div></div>
+      <div class="swatch"><div class="chips"><div style="background:#FFFFFF;color:#6E6E73">#FFFFFF</div><div style="background:#1C1C1E;color:#A1A1A6">#1C1C1E</div></div><div class="meta"><b>surface.widget</b><div>Widget background. Removable, so the system can render it vibrant on the desktop.</div><div class="r">SwiftUI: .containerBackground(.fill.tertiary, for: .widget)</div></div></div>
+      <div class="swatch"><div class="chips"><div style="background:#FFFFFF;color:#1D1D1F;font-size:20px">Aa</div><div style="background:#333336;color:#F5F5F7;font-size:20px">Aa</div></div><div class="meta"><b>text.primary</b> <span class="muted">#1D1D1F / #F5F5F7</span><div class="r">16.83:1 raised L · 11.57:1 raised D · SwiftUI .primary</div></div></div>
+      <div class="swatch"><div class="chips"><div style="background:#FFFFFF;color:#6E6E73;font-size:20px">Aa</div><div style="background:#333336;color:#A1A1A6;font-size:20px">Aa</div></div><div class="meta"><b>text.secondary</b> <span class="muted">#6E6E73 / #A1A1A6</span><div class="r">L 4.69 base · 5.07 raised<br>D 5.57 base · 4.90 raised · 6.61 widget<br>IC: #4A4A4F / #C7C7CC (8.15+ / 7.48+)</div></div></div>
+      <div class="swatch"><div class="chips"><div style="background:#FFFFFF;color:#8E8E93;font-size:20px">Aa</div><div style="background:#333336;color:#7C7C80;font-size:20px">Aa</div></div><div class="meta"><b>text.tertiary</b> <span class="muted">#8E8E93 / #7C7C80</span><div class="r">3.02–4.09:1. Glyphs, idle fills, and axis gridlines only. Never essential text.</div></div></div>
+    </div>
+
+    <h3>Signals</h3>
+    <div class="sw">
+      <div class="swatch"><div class="chips"><div style="background:#3A3A3C;color:#fff">#3A3A3C</div><div style="background:#C7C7CC;color:#1D1D1F">#C7C7CC</div></div><div class="meta"><b>meter</b> — normal Fuse fill, chart marks<div class="r">L 10.50 base · 11.35 raised<br>D 8.51 base · 7.48 raised · 10.10 widget</div></div></div>
+      <div class="swatch"><div class="chips"><div style="background:#C96A00;color:#fff">#C96A00</div><div style="background:#FF9F0A;color:#1D1D1F">#FF9F0A</div></div><div class="meta"><b>caution</b> (fill) — needs you soon<div class="r">L 3.50 base · 3.79 raised (graphics ≥ 3:1)<br>D 6.97 · 6.13 · 8.28</div></div></div>
+      <div class="swatch"><div class="chips"><div style="background:#fff;color:#9A4D00;font-size:20px">Aa</div><div style="background:#333336;color:#FFB340;font-size:20px">Aa</div></div><div class="meta"><b>caution.ink</b> <span class="muted">#9A4D00 / #FFB340</span><div class="r">L 5.66 · 6.11 · D 8.03 · 7.06 · 9.54<br>IC: #7A3A00 / #FFC98A (7.99+ / 8.38+)</div></div></div>
+      <div class="swatch"><div class="chips"><div style="background:#FF3B30;color:#fff">#FF3B30</div><div style="background:#FF453A;color:#1D1D1F">#FF453A</div></div><div class="meta"><b>alert</b> (fill) — needs you now<div class="r">L 3.28 base · 3.55 raised (graphics ≥ 3:1)<br>D 4.20 · 3.70 · 4.99 · system red values</div></div></div>
+      <div class="swatch"><div class="chips"><div style="background:#fff;color:#C8102E;font-size:20px">Aa</div><div style="background:#333336;color:#FF7B72;font-size:20px">Aa</div></div><div class="meta"><b>alert.ink</b> <span class="muted">#C8102E / #FF7B72</span><div class="r">L 5.44 · 5.88 · D 5.68 · 4.99 · 6.75<br>IC: #A1001B / #FF9C96 (7.68+ / 6.27+)</div></div></div>
+      <div class="swatch"><div class="chips"><div style="background:#0A64D6;color:#fff">accent</div><div style="background:#3B8EF0;color:#fff">accent</div></div><div class="meta"><b>accent</b> — the system's, not ours<div class="r">controlAccentColor. Leave AccentColor unset so it stays "multicolor" blue and follows the user's setting.</div></div></div>
+    </div>
+    <p class="muted" style="font-size:13px;margin-top:14px">Contrast is computed with the WCAG 2.x formula against the reference surfaces. IC = Increase Contrast variant. Confirm final values with Accessibility Inspector against the real system materials (<span class="cite">accessibility.md › Vision</span>).</p>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="type">
+  <div class="wrap">
+    <h2>Typography</h2>
+    <p class="sub">One family, SF Pro, in three roles. Hierarchy comes from size and weight. The only expressive move is the <b>readout</b>: key numbers set in SF Pro's expanded width, like the display on a meter.</p>
+    <div class="grid2">
+      <div class="card theme-light" style="background:#fff">
+        <div class="readout ty-readout-xl">$16.91</div><div class="ty-sub c2" style="margin-bottom:14px">Readout XL · SF Pro Expanded Semibold 28/32 · popover spend, small widget hero</div>
+        <div class="readout ty-readout-l">412 tok/s</div><div class="ty-sub c2" style="margin-bottom:14px">Readout L · Expanded Semibold 22/26 · chart headlines, medium widget hero</div>
+        <div class="ty-title3">surge-widget</div><div class="ty-sub c2" style="margin-bottom:14px">Title 3 · 15/20 Semibold · panel and section titles</div>
+        <div class="ty-headline">Claude Sonnet</div><div class="ty-sub c2" style="margin-bottom:14px">Headline · 13/16 Bold · workspace names</div>
+        <div class="ty-body" style="font-weight:500">deepseek-reasoner</div><div class="ty-sub c2" style="margin-bottom:14px">Body · 13/16 Regular/Medium · agent names, values</div>
+        <div class="ty-callout">Stalled 3m 14s</div><div class="ty-sub c2" style="margin-bottom:14px">Callout · 12/15 · status lines, buttons</div>
+        <div class="ty-sub c2">Orchestrator · 30m 42s</div><div class="ty-sub c2" style="margin-bottom:14px">Subheadline · 11/14 · metadata. <b>Floor for widgets.</b></div>
+        <div class="ty-mono c2">~/github/surge-widget</div><div class="ty-sub c2" style="margin-bottom:14px">SF Mono · 11/14 · paths, model and session IDs only</div>
+        <div class="ty-foot c2">−30m &nbsp; −20m &nbsp; −10m &nbsp; now</div><div class="ty-sub c2">Footnote · 10/13 · chart axis ticks only. <b>Absolute floor (macOS minimum).</b></div>
+      </div>
+      <div>
+        <table>
+          <tr><th>Rule</th><th>Source</th></tr>
+          <tr><td>Use the built-in macOS text styles above. Body text is 13 pt.</td><td><span class="cite">typography.md › macOS built-in text styles</span></td></tr>
+          <tr><td>Nothing below 10 pt anywhere. Nothing below 11 pt in widgets.</td><td><span class="cite">typography.md › Ensuring legibility</span>; <span class="cite">widgets.md › Displaying text in widgets</span></td></tr>
+          <tr><td>No Ultralight, Thin, or Light weights. Readouts are Semibold.</td><td><span class="cite">typography.md</span>: "In general, avoid light font weights."</td></tr>
+          <tr><td>Every changing number uses <code>.monospacedDigit()</code> so values don't jitter as they update.</td><td>Design judgment (kept from the wireframe)</td></tr>
+          <tr><td>Readouts use <code>.width(.expanded)</code> on the system font, not a custom typeface, so Bold Text and other system behaviors keep working.</td><td><span class="cite">widgets.md</span>: "use a custom font for the large text… and SF Pro for the smaller text." Achieved here with a system width instead.</td></tr>
+          <tr><td>SF Mono only for things you would type in a terminal. Never for labels or eyebrows.</td><td><span class="cite">typography.md › Conveying hierarchy</span>: "Minimize the number of typefaces you use."</td></tr>
+          <tr><td>No all-caps labels. Section labels are Subheadline Semibold in secondary color.</td><td><span class="cite">writing.md › Best practices</span> (consistent capitalization)</td></tr>
+        </table>
+        <p class="muted" style="font-size:13px;margin-top:10px">macOS doesn't support Dynamic Type (<span class="cite">typography.md › Desktop (macOS)</span>). Layouts must still survive the larger text people set in System Settings › Accessibility › Display, and widgets must not truncate essential values.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="layout">
+  <div class="wrap">
+    <h2>Layout, spacing &amp; shape</h2>
+    <p class="sub">A 4 pt grid. Radii are concentric, so every inner corner equals the outer radius minus the padding between them.</p>
+    <div class="grid3">
+      <div class="card"><h4>Spacing</h4>
+        <table><tr><th>Token</th><th class="num">pt</th><th>Use</th></tr>
+        <tr><td>space.1</td><td class="num">4</td><td>symbol ↔ label</td></tr>
+        <tr><td>space.2</td><td class="num">8</td><td>row internals, between groups</td></tr>
+        <tr><td>space.3</td><td class="num">12</td><td>row horizontal padding</td></tr>
+        <tr><td>space.4</td><td class="num">16</td><td>popover edge padding</td></tr>
+        <tr><td>space.5</td><td class="num">20</td><td>section breaks in panel</td></tr></table></div>
+      <div class="card"><h4>Radius</h4>
+        <table><tr><th>Element</th><th class="num">pt</th></tr>
+        <tr><td>Popover / panel</td><td class="num">system</td></tr>
+        <tr><td>Workspace group, banner</td><td class="num">10</td></tr>
+        <tr><td>Widget tile</td><td class="num">ContainerRelativeShape</td></tr>
+        <tr><td>Buttons, segmented</td><td class="num">system</td></tr>
+        <tr><td>Fuse</td><td class="num">capsule</td></tr></table>
+        <p class="muted" style="font-size:12.5px;margin-top:8px"><span class="cite">widgets.md › Choosing margins and padding</span>: "Coordinate the corner radius of your content with the corner radius of the widget."</p></div>
+      <div class="card"><h4>Sizes</h4>
+        <table><tr><th>Element</th><th class="num">pt</th></tr>
+        <tr><td>Popover width</td><td class="num">360</td></tr>
+        <tr><td>Popover max height</td><td class="num">600, then scroll</td></tr>
+        <tr><td>Agent row min height</td><td class="num">44</td></tr>
+        <tr><td>Hit target (min / default)</td><td class="num">20 / 28</td></tr>
+        <tr><td>Menu bar item height</td><td class="num">22 in a 24 bar</td></tr>
+        <tr><td>Fuse height (row / hero)</td><td class="num">6 / 10</td></tr></table>
+        <p class="muted" style="font-size:12.5px;margin-top:8px"><span class="cite">accessibility.md › Mobility</span>: macOS controls 28×28 pt default, 20×20 pt minimum.</p></div>
+    </div>
+    <h3>Layers</h3>
+    <div class="ascii">┌─────────────────────────────────────────────┐
+│ FUNCTIONAL LAYER — system glass, never custom │  menu bar · popover/panel chrome ·
+│                                               │  segmented control · buttons
+├─────────────────────────────────────────────┤
+│ CONTENT LAYER — opaque fills, no blur         │  workspace groups · agent rows ·
+│                                               │  charts · widget body
+└─────────────────────────────────────────────┘</div>
+    <p style="margin-top:10px;font-size:14px">Surge draws <b>no custom glass</b>. The popover and panel get the system material for free. Everything inside is content (<span class="cite">liquid-glass.md › The two layers</span>; <span class="cite">materials.md</span>: "Don't use Liquid Glass in the content layer").</p>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="status">
+  <div class="wrap">
+    <h2>Status system</h2>
+    <p class="sub">Seven agent states. Each one is carried by four channels at once: symbol shape, word, Fuse treatment, and (for two states only) color. Take any one channel away and the state still reads.</p>
+    <div class="card theme-light" style="padding:8px 22px;--sym-cut:#fff">
+    <table>
+      <tr><th>State</th><th>When</th><th>SF Symbol</th><th>Color</th><th>Label</th><th>Menu bar</th><th>Notification</th></tr>
+      <tr><td><span class="sym c1"><svg><use href="#i-bolt"/></svg></span> <b>Working</b></td><td>Tokens flowing within the last 120 s</td><td class="mono">bolt.fill</td><td>text.primary</td><td>"Working" + tok/s</td><td>counted</td><td>none</td></tr>
+      <tr><td><span class="sym cc"><svg><use href="#i-hand"/></svg></span> <b>Waiting for you</b></td><td>Agent is blocked on a permission prompt or a question</td><td class="mono">hand.raised.fill</td><td>caution</td><td>"Waiting for you"</td><td>attention glyph</td><td>Active</td></tr>
+      <tr><td><span class="sym ca"><svg><use href="#i-warn"/></svg></span> <b>Stalled</b></td><td>No tokens for more than 120 s while not waiting for you</td><td class="mono">exclamationmark.triangle.fill</td><td>alert</td><td>"Stalled 3m 14s" (timer)</td><td>attention glyph</td><td>Time Sensitive (opt-in), else Active</td></tr>
+      <tr><td><span class="sym c2"><svg><use href="#i-compress"/></svg></span> <b>Compacting</b></td><td>Context is being summarized</td><td class="mono">arrow.down.and.line.horizontal.and.arrow.up</td><td>text.secondary</td><td>"Compacting"</td><td>counted</td><td>none</td></tr>
+      <tr><td><span class="sym c3"><svg><use href="#i-pause"/></svg></span> <b>Idle</b></td><td>Session open, nothing requested</td><td class="mono">pause.fill</td><td>text.tertiary</td><td>"Idle 4m"</td><td>not counted</td><td>none</td></tr>
+      <tr><td><span class="sym c2"><svg><use href="#i-check"/></svg></span> <b>Done</b></td><td>Session ended normally (shown for 10 min)</td><td class="mono">checkmark</td><td>text.secondary</td><td>"Done · 42m"</td><td>not counted</td><td>Passive (opt-in)</td></tr>
+      <tr><td><span class="sym c2"><svg><use href="#i-boltslash"/></svg></span> <b>No signal</b></td><td>Proxy down or logs unreadable</td><td class="mono">bolt.slash</td><td>text.secondary</td><td>"No signal" + reason</td><td>hollow glyph</td><td>none</td></tr>
+    </table>
+    </div>
+    <h4>Modifiers (combine with any state)</h4>
+    <table>
+      <tr><th>Modifier</th><th>Threshold</th><th>Treatment</th></tr>
+      <tr><td>Context high</td><td class="num">70–89%</td><td>Fuse fill turns <b>caution</b>. The label adds "High". No banner.</td></tr>
+      <tr><td>Context near limit</td><td class="num">≥ 90%</td><td>Fuse fill turns <b>alert</b>. The label adds "Near limit". A banner appears only if the agent is also Waiting or Stalled.</td></tr>
+      <tr><td>Wallet low</td><td class="num">&lt; $5 or &lt; 20%</td><td>Footer value in <b>caution.ink</b> with a word: "Low".</td></tr>
+      <tr><td>Wallet empty</td><td class="num">&lt; $0.50</td><td><b>alert.ink</b>, the word "Empty", a banner in the Spend tab, and an Active notification.</td></tr>
+      <tr><td>Over daily budget</td><td class="num">&gt; 100%</td><td>Budget meter in <b>caution</b>. Never red, because overspending is a choice, not a failure.</td></tr>
+    </table>
+    <p class="muted" style="font-size:13px;margin-top:10px">Notification levels follow <span class="cite">managing-notifications.md</span>: Time Sensitive is "information that directly impacts the person and requires their immediate attention." A stalled agent fits that while it's happening, but people opt in, because some will treat stalls as routine. Never use alerts or popovers for warnings (<span class="cite">popovers.md</span>: "Avoid using a popover to show a warning").</p>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="fuse">
+  <div class="wrap">
+    <h2>The Fuse</h2>
+    <p class="sub">The signature component: a linear capacity meter for one agent's context window. It's a custom drawing of the system's continuous capacity indicator (<span class="cite">gauges.md › Desktop (macOS)</span>), with notches marking where the meaning changes.</p>
+    <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(480px,1fr))">
+      <div class="card theme-light on-widget" style="background:#fff">
+        <h4 style="margin-bottom:14px">Anatomy</h4>
+        <div style="position:relative;padding:22px 0 30px">
+          <div class="fuse lg" style="--s-raised:#fff"><i style="width:62%"></i></div>
+          <div class="ty-foot c2" style="position:absolute;left:0;top:0">0</div>
+          <div class="ty-foot c2" style="position:absolute;left:70%;top:0;transform:translateX(-50%)">70%</div>
+          <div class="ty-foot c2" style="position:absolute;left:90%;top:0;transform:translateX(-80%)">90%</div>
+          <div class="ty-foot c2" style="position:absolute;right:0;top:0">100%</div>
+          <div class="ty-sub c2" style="position:absolute;left:0;bottom:0">① fill (meter)</div>
+          <div class="ty-sub c2" style="position:absolute;left:44%;bottom:0">② notches</div>
+          <div class="ty-sub c2" style="position:absolute;right:0;bottom:0">③ track</div>
+        </div>
+        <p style="font-size:13.5px">① The fill is current context tokens divided by the model's window, read from <code>models-pricing.json</code>. ② Two notches, 1.5 pt wide, cut in the surface color at 70% and 90%: the High and Near limit thresholds. ③ The track is a neutral fill. The capsule is 6 pt in rows and 10 pt as a hero. A text label always sits beside it.</p>
+      </div>
+      <div class="card theme-light on-widget" style="background:#fff">
+        <h4 style="margin-bottom:12px">States (light)</h4>
+        <div style="display:grid;grid-template-columns:110px 1fr 120px;gap:14px 12px;align-items:center;font-size:12px">
+          <span class="c2">Normal</span><div class="fuse" style="--s-raised:#fff"><i style="width:42%"></i></div><span class="tn c2">42%</span>
+          <span class="c2">High</span><div class="fuse high" style="--s-raised:#fff"><i style="width:78%"></i></div><span class="tn cc">78% · High</span>
+          <span class="c2">Near limit</span><div class="fuse limit" style="--s-raised:#fff"><i style="width:93%"></i></div><span class="tn ca">93% · Near limit</span>
+          <span class="c2">Tripped (stalled)</span><div class="fuse tripped" style="--s-raised:#fff"><i style="width:41%"></i></div><span class="tn ca">Stalled 3m</span>
+          <span class="c2">Idle</span><div class="fuse idle" style="--s-raised:#fff"><i style="width:12%"></i></div><span class="tn c2">12% · Idle</span>
+          <span class="c2">Unknown</span><div class="fuse" style="--s-raised:#fff;background:repeating-linear-gradient(90deg,var(--track) 0 4px,transparent 4px 7px)"></div><span class="tn c2">— no data</span>
+        </div>
+      </div>
+      <div class="card theme-dark on-widget" style="background:#1C1C1E;--s-widget:#1C1C1E">
+        <h4 style="margin-bottom:12px;color:#F5F5F7">States (dark)</h4>
+        <div style="display:grid;grid-template-columns:110px 1fr 120px;gap:14px 12px;align-items:center;font-size:12px">
+          <span class="c2">Normal</span><div class="fuse"><i style="width:42%"></i></div><span class="tn c2">42%</span>
+          <span class="c2">High</span><div class="fuse high"><i style="width:78%"></i></div><span class="tn cc">78% · High</span>
+          <span class="c2">Near limit</span><div class="fuse limit"><i style="width:93%"></i></div><span class="tn ca">93% · Near limit</span>
+          <span class="c2">Tripped</span><div class="fuse tripped"><i style="width:41%"></i></div><span class="tn ca">Stalled 3m</span>
+          <span class="c2">Idle</span><div class="fuse idle"><i style="width:12%"></i></div><span class="tn c2">12% · Idle</span>
+        </div>
+      </div>
+      <div class="card">
+        <h4>Rules</h4>
+        <ul style="font-size:13.5px;padding-left:18px;margin:0">
+          <li>A text label always accompanies the Fuse: a percentage, plus a word at the thresholds (<span class="cite">gauges.md › Best practices</span>: "Write succinct labels that describe the current value").</li>
+          <li>Tripped is a <b>pattern</b>, not just a color, so it survives vibrant and grayscale rendering.</li>
+          <li>The axis is fixed at 0–100% of the model's window. Never rescale (<span class="cite">charts.md › Axes</span>: fixed range "when specific minimum and maximum values are meaningful").</li>
+          <li>The fill animates only when its value changes (≤ 0.3 s ease-out). It never pulses.</li>
+          <li>VoiceOver: "Context 72 percent of 200 thousand tokens, high."</li>
+          <li>SwiftUI: a custom <code>GaugeStyle</code>, so it stays a real <code>Gauge</code> for accessibility.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="components">
+  <div class="wrap">
+    <h2>Components</h2>
+    <p class="sub">The building blocks shared by the popover, the panel, and widgets. Use system controls (segmented <code>Picker</code>, <code>Button</code>, <code>Menu</code>, <code>DisclosureGroup</code>) wherever one exists. Only the Fuse, the agent row, and the charts are custom.</p>
+
+    <h3>Agent row</h3>
+    <div class="grid2">
+      <div class="theme-light" style="--sym-cut:#fff"><div class="group on-raised" style="box-shadow:0 0 0 1px rgba(0,0,0,.06)" data-r="rowdemo"></div></div>
+      <div>
+        <div class="ascii">[symbol] Name ··············· right value
+         Fuse ████████▌░░|░ 72% · High
+───────────────────────────────────────
+Orchestrator rows are flush. Worker rows are
+indented 16 pt with a tree connector.</div>
+        <ul style="font-size:13.5px;padding-left:18px;margin-top:12px">
+          <li><b>Line 1:</b> state symbol · model name (Body Medium) · role or provider (Subheadline, secondary) · trailing value: tok/s when Working, cost otherwise.</li>
+          <li><b>Line 2:</b> Fuse + context label. When Stalled, the trailing value becomes the stall timer and a <b>Nudge Agent</b> button appears.</li>
+          <li>Indentation and a hairline connector show which orchestrator spawned which worker (<span class="cite">layout.md › Visual hierarchy</span>: "use indentation to convey hierarchy").</li>
+          <li>Click to expand details inline (tokens in/out/cache, session ID, cwd). Secondary-click for a context menu: Show in Terminal, Copy Session ID, Mute Alerts for This Agent.</li>
+          <li>Hover shows a <code>.fill</code> highlight. Keyboard focus shows the system focus ring. Return expands the row, ⌘↩ runs the primary action.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Attention banner</h3>
+    <div class="grid2">
+      <div class="theme-light" style="--sym-cut:#F6F6F6"><div style="background:#F6F6F6;padding:10px;border-radius:14px;display:flex;flex-direction:column;gap:8px" data-r="banners"></div></div>
+      <div><ul style="font-size:13.5px;padding-left:18px;margin:0">
+        <li>Appears at the top of the Agents tab only for <b>Stalled</b> and <b>Waiting for you</b>, sorted alert first. At most 3 are shown; the rest collapse into "2 more need you".</li>
+        <li>Each banner has one action, labeled with a verb (<span class="cite">writing.md › Best practices</span>: "Be action oriented"). Stalled → <b>Nudge Agent</b>. Waiting → <b>Show in Terminal</b>.</li>
+        <li>It disappears when the condition clears, with no "dismiss" step. It's feedback in place, not an alert (<span class="cite">feedback.md › Best practices</span>).</li>
+        <li>Background is a 10–16% status tint, text is text.primary, and the symbol is the status fill.</li>
+      </ul></div>
+    </div>
+
+    <h3>Charts</h3>
+    <p style="font-size:14px">Swift Charts, monochrome. The data is the most prominent thing on the plot. Gridlines and ticks use tertiary. Every chart has a headline readout and a one-line summary above it (<span class="cite">charting-data.md › Designing effective charts</span>: "Aid comprehension by adding descriptive text"). Series are separated by grey steps, 1.5 pt gaps, and direct labels, never by hue (<span class="cite">charts.md › Color</span>).</p>
+    <div class="grid3 theme-light" style="--sym-cut:#fff">
+      <div class="card" style="background:#fff;color:#1D1D1F"><div class="ty-sub c2">Throughput · last 30 min</div><div class="readout ty-readout-l">412 <span class="ty-callout c2" style="font-stretch:100%;font-weight:400">tok/s</span></div><div class="ty-sub c2" style="margin-bottom:8px">18% above your 30-min average</div><div data-r="chart-throughput"></div><p class="muted" style="font-size:12px;margin-top:10px">Line + area in <b>meter</b>, endpoint dot, y-axis on the trailing edge, lower bound 0 (<span class="cite">charts.md › Axes</span>).</p></div>
+      <div class="card" style="background:#fff;color:#1D1D1F"><div class="ty-sub c2">Tokens today</div><div class="readout ty-readout-l">4.18M</div><div class="ty-sub c2" style="margin-bottom:8px">71% served from cache</div><div data-r="chart-tokens"></div><p class="muted" style="font-size:12px;margin-top:10px">Stacked by hour: cache read (light), input (mid), output (dark), with legend labels. Zero baseline.</p></div>
+      <div class="card" style="background:#fff;color:#1D1D1F"><div class="ty-sub c2">Spend by provider · today</div><div class="readout ty-readout-l">$16.91</div><div class="ty-sub c2" style="margin-bottom:8px">Anthropic is 83% of today's spend</div><div data-r="chart-providers"></div><p class="muted" style="font-size:12px;margin-top:10px">A sorted horizontal bar list instead of a stacked strip, so each value can be read directly.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="menubar">
+  <div class="wrap">
+    <h2>Menu bar extra</h2>
+    <p class="sub">The menu bar is the product's resting state: one template glyph of up to four vertical mini-Fuses (the busiest agents), with an optional short readout. It's 22 pt tall inside the 24 pt menu bar (<span class="cite">the-menu-bar.md › Menu bar extras</span>).</p>
+    <div class="stage wall-l" style="flex-direction:column;align-items:center;gap:14px" data-r="mbars-l"></div>
+    <div class="stage wall-d" style="flex-direction:column;align-items:center;gap:14px;margin-top:16px" data-r="mbars-d"></div>
+    <div class="grid2" style="margin-top:24px">
+      <div>
+        <h4>Glyph rules</h4>
+        <ul style="font-size:13.5px;padding-left:18px;margin:0">
+          <li>A <b>template image</b> (black and clear) so the system can recolor it for light and dark menu bars and the selected state (<span class="cite">the-menu-bar.md › Menu bar extras</span>). Exported as a custom SF Symbol with variable layers.</li>
+          <li>Bar height = context fill. A stalled agent's bar is drawn <b>hollow with a dot</b>, so the alarm is a shape change and stays readable in monochrome.</li>
+          <li>When anything needs you, an <b>exclamation mark</b> and a count are appended. That's the only change.</li>
+          <li>Optional color: Settings › "Tint menu bar icon when an agent needs you" (off by default) tints only the exclamation mark. Design judgment: the template rule wins by default.</li>
+          <li>Readout options (Settings): None · Agents · Spend. Never more than one number. The blueprint's "1 Orch · 2 Workers · $1.42" is too wide for a crowded menu bar, which the system will hide.</li>
+          <li>No animation in the menu bar, ever.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Click behavior</h4>
+        <ul style="font-size:13.5px;padding-left:18px;margin:0">
+          <li><b>Click</b> opens the popover (<code>MenuBarExtra</code>, <code>.menuBarExtraStyle(.window)</code>). HIG prefers a menu "unless the app functionality you want to expose is too complex for a menu." Surge's charts and live tree qualify.</li>
+          <li><b>Secondary-click</b> opens a plain menu: Open Surge Panel, Pause Monitoring, Settings…, Quit Surge. This gives keyboard and VoiceOver users the core commands without the dashboard.</li>
+          <li>People choose whether the item appears. It's an onboarding toggle and a General setting (<span class="cite">the-menu-bar.md</span>: "Let people — not your app — decide").</li>
+          <li>Because the system can hide extras, everything is also reachable through a <b>Dock menu</b> (when the Dock icon is shown), the panel, and a global shortcut people set themselves (<span class="cite">the-menu-bar.md</span>: "Avoid relying on the presence of menu bar extras").</li>
+          <li>Accessibility label: "Surge. 5 agents, 2 need you. 16 dollars 91 spent today."</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="popover">
+  <div class="wrap">
+    <h2>Popover &amp; panel</h2>
+    <p class="sub">The dashboard. It's 360 pt wide, grows to 600 pt tall, and then scrolls. It has three tabs in a system segmented control, ordered by how often people need them. Drag it away from the menu bar to detach it as a floating panel, which is the "standalone on the desktop" mode (<span class="cite">popovers.md › Desktop (macOS)</span>: "Consider letting people detach a popover").</p>
+    <div class="stage wall-l" data-r="pops-l"></div>
+    <div class="stage wall-d" style="margin-top:16px" data-r="pops-d"></div>
+    <div class="grid2" style="margin-top:24px">
+      <div>
+        <h4>Structure (top to bottom = importance)</h4>
+        <div class="ascii">┌ Header ─────────────────────────────┐
+│ $16.91            ⚠ 2 need you  ⧉ ⋯ │  readout · status · Pin · More
+│ Spent today · 42% of $40            │
+├ [ Agents │ Usage │ Spend ]  ⌘1 ⌘2 ⌘3 ┤
+│ ▲ Banners (only if needed)          │
+│ ▾ workspace ··················· $12 │  DisclosureGroup per project
+│   ⚡ orchestrator           68 tok/s │
+│     Fuse ███████▌░|░  72% · High     │
+│   └ ⚠ worker  Stalled 3m  [Nudge]    │
+├ Footer ─────────────────────────────┤
+│ DeepSeek   OpenRouter   Claude 5-hr │  wallets &amp; plan limits
+└─────────────────────────────────────┘</div>
+      </div>
+      <div>
+        <h4>Rules</h4>
+        <ul style="font-size:13.5px;padding-left:18px;margin:0">
+          <li>The header status always gives the count of agents that need you, as a word plus a symbol. When all is well it says "All agents working" in secondary.</li>
+          <li>Workspaces are sorted by most urgent state, then by spend. Groups with nothing needing attention can collapse, and the collapsed state is remembered.</li>
+          <li>The footer holds non-critical context, so placing it at the bottom is fine. Critical states never live only in the footer: a low wallet also appears in the Spend tab and as an Active notification.</li>
+          <li>Pin (<span class="mono">macwindow.on.rectangle</span>) detaches the popover. The detached panel looks the same plus a title bar: "Surge" (<span class="cite">popovers.md</span>: "Make minimal appearance changes to a detached popover").</li>
+          <li>More (⋯) is a pull-down menu: Pause Monitoring, Reset Today's Counters…, Settings… (⌘,), Quit Surge (⌘Q).</li>
+          <li>Settings live in a standard settings window, not inside the popover (<span class="cite">settings.md</span>).</li>
+          <li>Empty state: "No agents running" plus a hint: "Start Claude Code, or point workers at 127.0.0.1:8899." Setup and help, never blank (<span class="cite">writing.md › Best practices</span>).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="widgets">
+  <div class="wrap">
+    <h2>Desktop widgets</h2>
+    <p class="sub">Two widget kinds, each with one job. No tabs, no chips, no scrolling. At most one button, and only when something needs you. Clicking anywhere else opens the panel at the related agent or chart (<span class="cite">widgets.md › Adding interactivity</span>: "Ensure that a widget interaction opens your app at the right location").</p>
+    <table style="margin-bottom:20px">
+      <tr><th>Widget</th><th>Sizes</th><th>Gallery description</th><th>Configurable</th></tr>
+      <tr><td><b>Agents</b></td><td>Small · Medium · Large</td><td>"See which coding agents are working, waiting for you, or stalled."</td><td>Workspace: All or a specific project</td></tr>
+      <tr><td><b>Spend</b></td><td>Small · Medium</td><td>"Track today's AI spend against your budget and wallet balances."</td><td>Budget period: Day or Week</td></tr>
+    </table>
+    <h4>Light</h4>
+    <div class="stage wall-l" data-r="widgets-l"></div>
+    <h4>Dark</h4>
+    <div class="stage wall-d" data-r="widgets-d"></div>
+    <h4>Desktop, vibrant rendering (when windows cover the desktop)</h4>
+    <div class="stage" style="background:linear-gradient(135deg,#4B5E7A,#7A5E6B 50%,#5E7A6E)" data-r="widgets-v"></div>
+    <p class="cap">Simulated. Color is gone, but every state still reads through symbol, word, and the hatched Fuse.</p>
+    <div class="grid2" style="margin-top:20px">
+      <div><h4>Rules</h4><ul style="font-size:13.5px;padding-left:18px;margin:0">
+        <li>Text is 11 pt or larger. Readouts use the expanded width (<span class="cite">widgets.md › Displaying text in widgets</span>).</li>
+        <li>Use the system content margins (tighter on the Mac desktop) and <code>ContainerRelativeShape</code> for tiles (<span class="cite">widgets.md › Choosing margins and padding</span>).</li>
+        <li>Times use <code>Text(.timer)</code>. Reload the timeline on stall or recover and on 5% spend steps. Show "Updated 2 min ago" when data is older than 5 min (<span class="cite">widgets.md › Updating widget content</span>).</li>
+        <li>Data changes use <code>.contentTransition(.numericText())</code>, under 2 s.</li>
+        <li>The background is removable via <code>containerBackground</code>, so vibrant and clear renderings work.</li>
+      </ul></div>
+      <div><h4>Size intent</h4><ul style="font-size:13.5px;padding-left:18px;margin:0">
+        <li><b>Agents · Small:</b> Is anything wrong? It shows the one agent that needs you, or the working count plus the menu bar Fuses.</li>
+        <li><b>Agents · Medium:</b> The four most urgent agents, one row each.</li>
+        <li><b>Agents · Large:</b> The tree for one workspace, plus a throughput sparkline. It doesn't just stretch the medium layout to fill space (<span class="cite">widgets.md</span>: "Avoid expanding a smaller widget's content to simply fill a larger area").</li>
+        <li><b>Spend · Small/Medium:</b> Today against budget, cache savings, wallets.</li>
+        <li><b>Placeholder:</b> grey capsules standing in for Fuses and grey bars for text (<span class="cite">widgets.md › Previews and placeholders</span>).</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="motion">
+  <div class="wrap">
+    <h2>Motion</h2>
+    <p class="sub">One choreographed moment. Everything else is the system's default.</p>
+    <div class="grid2">
+      <div class="card theme-light" style="background:#fff">
+        <h4>Trip and reset</h4>
+        <p style="font-size:13.5px">When an agent stalls, its Fuse fill <b>stops</b>, and the hatch fades in over 0.3 s. It happens once. When the agent recovers, after a Nudge or on its own, the hatch clears from left to right and the fill resumes, a 0.4 s spring. That's the only time Surge moves on its own initiative, and it marks the only event worth noticing.</p>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+          <div class="fuse lg demo-trip" id="tripdemo" style="--s-raised:#fff"><i style="width:41%"></i></div>
+          <button class="btn" id="tripbtn" type="button" style="border:0;cursor:pointer">Trip</button>
+        </div>
+        <p class="muted" style="font-size:12px;margin-top:8px">With Reduce Motion on, states swap instantly with a cross-fade.</p>
+      </div>
+      <div>
+        <table>
+          <tr><th>Moment</th><th>Treatment</th></tr>
+          <tr><td>Number changes</td><td><code>.contentTransition(.numericText())</code>, system timing</td></tr>
+          <tr><td>Fuse value change</td><td>0.3 s ease-out width. No pulse.</td></tr>
+          <tr><td>Agent appears/leaves</td><td>System list insertion/removal</td></tr>
+          <tr><td>Working indicator</td><td><b>None.</b> The tok/s value updating is the signal. No spinners, no pulses.</td></tr>
+          <tr><td>Popover tab change</td><td>System segmented control. Height changes animate (<span class="cite">popovers.md</span>: "Provide a smooth transition when changing the size")</td></tr>
+          <tr><td>Menu bar</td><td>Never animates</td></tr>
+          <tr><td>Widgets</td><td>System update transitions, under 2 s (<span class="cite">widgets.md › Updating widget content</span>)</td></tr>
+        </table>
+        <p class="muted" style="font-size:13px;margin-top:10px"><span class="cite">motion.md › Best practices</span>: "Add motion purposefully… Make motion optional." <span class="cite">motion.md › Providing feedback</span>: "generally avoid adding motion to UI interactions that occur frequently."</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="a11y">
+  <div class="wrap">
+    <h2>Accessibility &amp; keyboard</h2>
+    <div class="grid2">
+      <div><table>
+        <tr><th>Setting</th><th>Surge's answer</th></tr>
+        <tr><td>VoiceOver</td><td>Each agent row is one element: "Claude Sonnet, orchestrator, surge-widget. Working, 68 tokens per second. Context 72 percent, high. 9 dollars 84." The Nudge button is a custom action on the row. Charts provide <code>AXChartDescriptor</code> and Audio Graphs (<span class="cite">charts.md › Enhancing the accessibility of a chart</span>).</td></tr>
+        <tr><td>Increase Contrast</td><td>IC variants for all custom colors. Separators go to 1 pt at 25% opacity. Fuse tracks get a 1 pt outline.</td></tr>
+        <tr><td>Reduce Transparency</td><td>The system makes the popover opaque. Surge has no custom blur, so nothing else changes.</td></tr>
+        <tr><td>Reduce Motion</td><td>Trip and reset becomes a cross-fade. Numeric transitions are off.</td></tr>
+        <tr><td>Differentiate Without Color</td><td>Already the default: symbol plus word plus pattern for every state.</td></tr>
+        <tr><td>Larger text</td><td>Rows grow in height, and the trailing value wraps under the name rather than truncating it (<span class="cite">typography.md › Supporting Dynamic Type</span>: "consider using a stacked layout").</td></tr>
+      </table></div>
+      <div><table>
+        <tr><th>Shortcut</th><th>Action</th></tr>
+        <tr><td class="mono">user-defined</td><td>Toggle Surge popover (global, set in Settings, no default)</td></tr>
+        <tr><td class="mono">⌘1 ⌘2 ⌘3</td><td>Agents / Usage / Spend</td></tr>
+        <tr><td class="mono">↑ ↓</td><td>Move between agent rows</td></tr>
+        <tr><td class="mono">← →</td><td>Collapse / expand workspace or row</td></tr>
+        <tr><td class="mono">↩</td><td>Show agent details</td></tr>
+        <tr><td class="mono">⌘↩</td><td>Primary action on focused row (Nudge Agent / Show in Terminal)</td></tr>
+        <tr><td class="mono">⌘C</td><td>Copy session ID of focused row</td></tr>
+        <tr><td class="mono">⌘,</td><td>Settings…</td></tr>
+        <tr><td class="mono">Esc</td><td>Close popover</td></tr>
+      </table>
+      <p class="muted" style="font-size:13px;margin-top:10px">Standard shortcuts are respected, and the only custom ones are the tab switches. Every pointer target is at least 20×20 pt, and 28×28 pt by default (<span class="cite">accessibility.md › Mobility</span>).</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="writing">
+  <div class="wrap">
+    <h2>Writing</h2>
+    <p class="sub">Plain words a person would say out loud. Title case for buttons and menu items, sentence case for everything else (<span class="cite">writing.md › Best practices</span>).</p>
+    <div class="grid2">
+      <table>
+        <tr><th>Use</th><th>Not</th></tr>
+        <tr><td>Agents</td><td>Swarm, fleet, herd</td></tr>
+        <tr><td>Orchestrator · Worker</td><td>Architect, lane, shard</td></tr>
+        <tr><td>Workspace (the project folder name)</td><td>Mission, MONOREPO-MIGRATION-V4</td></tr>
+        <tr><td>Working · Waiting for you · Stalled</td><td>RUNNING · STUCK · NOMINAL</td></tr>
+        <tr><td>Context 93% · Near limit</td><td>COMPACT SOON, HIGH CTX, OPTIMAL</td></tr>
+        <tr><td>Nudge Agent</td><td>Nudge / Restart, Tap to Nudge Worker →</td></tr>
+        <tr><td>Spent today</td><td>Swarm burn rate</td></tr>
+        <tr><td>Cache saved $3.10</td><td>💾 −$3.10</td></tr>
+      </table>
+      <table>
+        <tr><th>Moment</th><th>Copy</th></tr>
+        <tr><td>Stalled banner</td><td><b>deepseek-reasoner stalled</b><br>surge-widget · no tokens for 3m 14s</td></tr>
+        <tr><td>Waiting banner</td><td><b>Claude Opus is waiting for you</b><br>herdr-api · wants to run <span class="mono">npm test</span></td></tr>
+        <tr><td>Notification</td><td>Title: deepseek-reasoner stalled<br>Body: No tokens for 2 minutes in surge-widget.<br>Actions: Nudge Agent · Show</td></tr>
+        <tr><td>No signal</td><td>Can't reach the proxy on port 8899. Check that workers use <span class="mono">OPENAI_BASE_URL</span>.</td></tr>
+        <tr><td>Empty</td><td>No agents running. Start Claude Code, or point workers at 127.0.0.1:8899.</td></tr>
+        <tr><td>Wallet low</td><td>OpenRouter · $4.80 · Low</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="swiftui">
+  <div class="wrap">
+    <h2>SwiftUI mapping</h2>
+    <p class="sub">Tokens as code. Status colors are asset-catalog Color Sets with Any/Dark and High Contrast variants. Everything else is system.</p>
+<pre><code>// Colors — Assets.xcassets: AlertFill, AlertInk, CautionFill, CautionInk
+//   each with Any / Dark × Normal / High Contrast (values in the Color section)
+extension ShapeStyle where Self == Color {
+    static var surgeAlert: Color      { Color("AlertFill") }
+    static var surgeAlertInk: Color   { Color("AlertInk") }
+    static var surgeCaution: Color    { Color("CautionFill") }
+    static var surgeCautionInk: Color { Color("CautionInk") }
+    static var surgeMeter: Color      { .primary.opacity(0.78) } // ≈ #3A3A3C / #C7C7CC
+}
+
+// Type
+extension Font {
+    static let readoutXL = Font.system(size: 28, weight: .semibold).width(.expanded).monospacedDigit()
+    static let readoutL  = Font.system(size: 22, weight: .semibold).width(.expanded).monospacedDigit()
+    static let agentName = Font.body.weight(.medium)          // 13 pt on macOS
+    static let meta      = Font.subheadline                    // 11 pt
+    static let path      = Font.system(.subheadline, design: .monospaced)
+}
+
+// Agent state → presentation (one source of truth for every surface)
+enum AgentStatus { case working, waitingForYou, stalled(since: Date), compacting, idle(since: Date), done, noSignal }
+
+extension AgentStatus {
+    var symbol: String {
+        switch self {
+        case .working:       "bolt.fill"
+        case .waitingForYou: "hand.raised.fill"
+        case .stalled:       "exclamationmark.triangle.fill"
+        case .compacting:    "arrow.down.and.line.horizontal.and.arrow.up"
+        case .idle:          "pause.fill"
+        case .done:          "checkmark"
+        case .noSignal:      "bolt.slash"
+        }
+    }
+    var needsYou: Bool { if case .stalled = self { true } else if case .waitingForYou = self { true } else { false } }
+}
+
+// The Fuse — a real Gauge with a custom style, so accessibility comes for free
+struct FuseGaugeStyle: GaugeStyle {
+    var tripped = false
+    func makeBody(configuration: Configuration) -> some View {
+        GeometryReader { geo in
+            let v = configuration.value
+            ZStack(alignment: .leading) {
+                Capsule().fill(.quaternary)
+                Capsule()
+                    .fill(tripped ? AnyShapeStyle(HatchPattern(color: .surgeAlert)) // custom ShapeStyle: 45° stripes, 3 pt
+                          : v >= 0.9 ? AnyShapeStyle(.surgeAlert)
+                          : v >= 0.7 ? AnyShapeStyle(.surgeCaution)
+                          : AnyShapeStyle(.surgeMeter))
+                    .frame(width: geo.size.width * v)
+                    .animation(.easeOut(duration: 0.3), value: v)
+                ForEach([0.7, 0.9], id: \.self) { t in      // notches
+                    Rectangle().fill(.background).frame(width: 1.5)
+                        .offset(x: geo.size.width * t)
+                }
+            }
+        }
+        .frame(height: 6)
+        .clipShape(Capsule())
+    }
+}
+
+// Menu bar
+MenuBarExtra { DashboardView() } label: {
+    Image("surge.fuses", variableValue: peakContext)     // custom template symbol
+    if showsReadout { Text(spend, format: .currency(code: "USD")).monospacedDigit() }
+}
+.menuBarExtraStyle(.window)
+
+// Widgets
+.containerBackground(.fill.tertiary, for: .widget)
+Text(stall.startDate, style: .timer)                       // system-refreshed timers
+Button(intent: NudgeAgentIntent(agentID: agent.id)) { Label("Nudge Agent", systemImage: "arrow.clockwise") }</code></pre>
+    <p class="muted" style="font-size:13px;margin-top:12px">Platform target: the blueprint says macOS 14+. The visual language here assumes macOS 26+ system materials. On 14–15 the same tokens work, and the popover simply uses the older system material. Nothing in Surge depends on custom glass.</p>
+  </div>
+</section>
+
+<!-- ================================================================== -->
+<section id="open">
+  <div class="wrap">
+    <h2>Open questions</h2>
+    <ul style="font-size:14.5px;padding-left:18px;max-width:80ch">
+      <li><b>What does "Nudge" do technically?</b> Send a newline or "continue" to the agent's TTY, restart the worker process, or just open the terminal? The label should say exactly that. If it can lose work, it needs a confirmation (<span class="cite">feedback.md</span>: "Warn people when they initiate a task that can cause data loss").</li>
+      <li><b>Stall threshold.</b> The wireframe uses 120 s. Reasoning models can think silently for longer. Make it per-model in <code>models-pricing.json</code> (for example, 300 s for <code>deepseek-reasoner</code>).</li>
+      <li><b>Budget.</b> Is the daily budget a hard number people set, or derived from wallet balances? This decides whether "over budget" is caution or simply information.</li>
+      <li><b>App icon.</b> Proposed: a graphite tile with three vertical Fuses, the middle one filled. It's the only place a brand color could appear, as a single warm filament in the filled Fuse. Needs its own exploration with light, dark, clear, and tinted variants.</li>
+    </ul>
+  </div>
+</section>
+
+<footer style="padding:40px 0 60px;border-top:1px solid var(--doc-rule)"><div class="wrap muted" style="font-size:13px">Surge Design System v0.1 · Sources: Apple Human Interface Guidelines (pages cited inline, as of November 2026), <span class="mono">surge.pdf</span> (architecture blueprint), <span class="mono">surge-wireframe.html</span>. Hex values are mockup references. Ship with system semantic colors plus the four custom Color Sets.</div></footer>
+
+<script>
+/* ------------------------------------------------------------------
+   Sample data (one model drives every mockup)
+   ------------------------------------------------------------------ */
+const WS = [
+  { name:'surge-widget', path:'~/github/surge-widget', cost:'$12.40', agents:[
+    { name:'Claude Sonnet', role:'Orchestrator', state:'working', ctx:72, val:'68 tok/s' },
+    { name:'deepseek-reasoner', role:'DeepSeek', state:'stalled', ctx:41, val:'3m 14s' },
+    { name:'deepseek-chat', role:'DeepSeek', state:'working', ctx:38, val:'94 tok/s' } ]},
+  { name:'herdr-api', path:'~/code/herdr-api', cost:'$4.51', agents:[
+    { name:'Claude Opus', role:'Orchestrator', state:'waiting', ctx:93, val:'$4.20' },
+    { name:'qwen3-coder', role:'OpenRouter', state:'idle', ctx:12, val:'$0.31', idle:'4m' } ]}
+];
+const THROUGHPUT=[188,204,231,226,262,240,281,305,292,318,301,334,352,340,366,349,372,395,380,402,386,411,398,421,405,436,418,402,409,412];
+const TOKENS=[[310,90,22],[280,84,20],[350,110,30],[420,130,34],[390,118,31],[460,150,40],[520,160,44],[480,140,38],[540,170,46],[610,190,52],[580,176,49],[640,205,58]]; // cache,input,output (k)
+const PROVIDERS=[['Anthropic',14.04],['DeepSeek',2.56],['OpenRouter',0.31]];
+const WEEK=[[ 'W',21.4],['T',18.2],['F',26.9],['S',6.1],['S',3.4],['M',24.8],['T',16.91]];
+
+const SYM={working:['bolt','c1'],stalled:['warn','ca'],waiting:['hand','cc'],idle:['pause','c3'],compacting:['compress','c2'],done:['check','c2']};
+const sym=(id,cls='',size='')=>`<span class="sym ${size} ${cls}" aria-hidden="true"><svg><use href="#i-${id}"/></svg></span>`;
+const stSym=(s,size='')=>sym(SYM[s][0],SYM[s][1],size);
+
+function fuseCls(a){ if(a.state==='stalled')return'tripped'; if(a.state==='idle')return'idle'; if(a.ctx>=90)return'limit'; if(a.ctx>=70)return'high'; return''; }
+function ctxLabel(a){
+  if(a.state==='stalled') return `<span class="ca">Stalled ${a.val}</span>`;
+  if(a.state==='idle') return `${a.ctx}% · Idle ${a.idle}`;
+  if(a.ctx>=90) return `<span class="ca">${a.ctx}% · Near limit</span>`;
+  if(a.ctx>=70) return `<span class="cc">${a.ctx}% · High</span>`;
+  return `${a.ctx}%`;
+}
+function rightVal(a){
+  if(a.state==='stalled') return `<span class="btn" title="Nudge Agent">Nudge</span>`;
+  if(a.state==='waiting') return `<span class="cc" style="font-weight:600">Waiting</span>`;
+  return `<span class="${a.state==='idle'?'c2':''}">${a.val}</span>`;
+}
+function agentRow(a,worker,last){
+  return `<div class="row ${worker?'worker':''}">
+    ${worker?`<div class="branch ${last?'':'mid'}"></div>`:''}
+    ${stSym(a.state)}
+    <div style="min-width:0;display:flex;gap:6px;align-items:baseline"><span class="nm">${a.name}</span><span class="meta">${a.role}</span></div>
+    <div class="right">${rightVal(a)}</div>
+    <div class="ctx"><div class="fuse ${fuseCls(a)}"><i style="width:${a.ctx}%"></i></div><span class="pct">${ctxLabel(a)}</span></div>
+  </div>`;
+}
+function group(w,open=true){
+  return `<div class="group"><div class="group-h">${sym('chev','c2','sm')}<span class="nm">${w.name}</span><span class="path">${w.path}</span><span class="amt tn">${w.cost}</span></div>
+  ${open?w.agents.map((a,i)=>agentRow(a,i>0,i===w.agents.length-1)).join(''):''}</div>`;
+}
+function banners(){
+  return `<div class="banner">${sym('warn','ca')}<div class="txt"><div class="t">deepseek-reasoner stalled</div><div class="s">surge-widget · no tokens for 3m 14s</div></div><span class="btn">Nudge Agent</span></div>
+  <div class="banner caution">${sym('hand','cc')}<div class="txt"><div class="t">Claude Opus is waiting for you</div><div class="s">herdr-api · wants to run <span class="mono">npm test</span></div></div><span class="btn">Show in Terminal</span></div>`;
+}
+function popHead(tab){
+  const tabs=['Agents','Usage','Spend'].map(t=>`<span class="${t===tab?'on':''}">${t}</span>`).join('');
+  return `<div class="pop-head">
+      <div><div class="readout ty-readout-xl tn">$16.91</div><div class="lbl">Spent today · 42% of $40 budget</div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <div style="display:flex;gap:2px"><span class="iconbtn" title="Detach as Panel">${sym('pin','','')}</span><span class="iconbtn" title="More">${sym('more')}</span></div>
+        <div class="status-line ca">${sym('warn','ca','sm')}2 need you</div>
+      </div></div>
+    <div class="seg" role="tablist">${tabs}</div>`;
+}
+function popFoot(){
+  return `<div class="foot">
+    <div><div class="k">DeepSeek</div><div class="v">$18.40</div></div>
+    <div><div class="k">OpenRouter</div><div class="v cc">$4.80 · Low</div></div>
+    <div><div class="k">Claude 5-hour</div><div class="v">64%</div><div class="minibar"><i style="width:64%"></i></div></div>
+  </div>`;
+}
+function popAgents(){
+  return `<div class="pop on-base">${popHead('Agents')}<div class="pop-body">${banners()}${WS.map(w=>group(w)).join('')}</div>${popFoot()}</div>`;
+}
+function popUsage(){
+  const all=WS.flatMap(w=>w.agents).sort((a,b)=>b.ctx-a.ctx);
+  return `<div class="pop on-base">${popHead('Usage')}<div class="pop-body">
+    <div class="group" style="padding:10px 12px"><div class="ty-sub c2">Throughput · last 30 min</div>
+      <div class="readout ty-readout-l">412 <span class="ty-callout c2" style="font-stretch:100%;font-weight:400">tok/s</span></div>
+      <div class="ty-sub c2" style="margin-bottom:6px">2 agents working · 18% above average</div>${lineChart(THROUGHPUT,316,84)}</div>
+    <div class="group" style="padding:10px 12px"><div class="ty-sub c2">Tokens today</div>
+      <div class="readout ty-readout-l">4.18M</div><div class="ty-sub c2" style="margin-bottom:6px">71% served from cache · saved $3.10</div>${stackChart(TOKENS,316,70)}</div>
+    <div class="group" style="padding:8px 12px 10px"><div class="ty-sub c2" style="margin-bottom:6px">Context by agent</div>
+      ${all.map(a=>`<div style="display:grid;grid-template-columns:118px 1fr 96px;gap:8px;align-items:center;padding:3px 0"><span class="ty-callout" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</span><div class="fuse ${fuseCls(a)}"><i style="width:${a.ctx}%"></i></div><span class="ty-sub c2 tn" style="text-align:right">${ctxLabel(a)}</span></div>`).join('')}
+    </div></div>${popFoot()}</div>`;
+}
+function popSpend(){
+  return `<div class="pop on-base">${popHead('Spend')}<div class="pop-body">
+    <div class="group" style="padding:10px 12px"><div style="display:flex;justify-content:space-between;align-items:baseline"><div class="ty-sub c2">Daily budget</div><div class="ty-sub c2 tn">$16.91 of $40</div></div>
+      <div class="minibar" style="height:10px;border-radius:5px;margin:8px 0 6px"><i style="width:42%;border-radius:5px"></i></div>
+      <div class="ty-sub c2">On pace for about $31 by midnight</div></div>
+    <div class="group" style="padding:10px 12px"><div class="ty-sub c2" style="margin-bottom:8px">By provider · today</div>${providerBars(PROVIDERS)}</div>
+    <div class="group" style="padding:10px 12px"><div class="ty-sub c2" style="margin-bottom:6px">Last 7 days</div>${weekBars(WEEK,316,74)}</div>
+    <div class="group" style="padding:4px 0">
+      ${[['DeepSeek','$18.40','balance',''],['OpenRouter','$4.80','of $25 limit · Low','cc'],['Claude plan · 5-hour','64%','resets 16:40',''],['Claude plan · weekly','38%','resets Mon','']].map(([k,v,s,c],i)=>`<div class="row" style="grid-template-columns:16px 1fr auto;${i?'border-top:.5px solid var(--sep)':''}">${sym('wallet','c2')}<div><span class="nm" style="font-weight:500">${k}</span> <span class="meta">${s}</span></div><div class="right ${c}" style="font-weight:600">${v}</div></div>`).join('')}
+    </div>
+    <div class="ty-foot c2" style="text-align:center">Balances updated 12 s ago</div>
+  </div></div>`;
+}
+
+/* ------------------------------------------------------------------ charts */
+function lineChart(v,w,h){
+  const max=500,pad=22,iw=w-pad, y=x=>h-14-(x/max)*(h-20);
+  const pts=v.map((x,i)=>[(i/(v.length-1))*iw,y(x)]);
+  const line=pts.map(p=>p.map(n=>n.toFixed(1)).join(',')).join(' ');
+  const last=pts[pts.length-1];
+  const grid=[0,250,500].map(g=>`<line x1="0" x2="${iw}" y1="${y(g)}" y2="${y(g)}" style="stroke:var(--sep)" stroke-width="1"/><text x="${iw+4}" y="${y(g)+3}" style="fill:var(--t2);font:10px var(--sans)">${g}</text>`).join('');
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Line chart of throughput over 30 minutes, rising from 188 to 412 tokens per second">
+    ${grid}<polygon points="0,${y(0)} ${line} ${iw},${y(0)}" style="fill:var(--fill)"/>
+    <polyline points="${line}" fill="none" style="stroke:var(--meter)" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="3" style="fill:var(--meter)"/>
+    <text x="0" y="${h-1}" style="fill:var(--t2);font:10px var(--sans)">−30m</text><text x="${iw/2}" y="${h-1}" text-anchor="middle" style="fill:var(--t2);font:10px var(--sans)">−15m</text><text x="${iw}" y="${h-1}" text-anchor="end" style="fill:var(--t2);font:10px var(--sans)">now</text></svg>`;
+}
+function stackChart(d,w,h){
+  const max=900,n=d.length,gap=4,bw=(w-gap*(n-1))/n, base=h-14;
+  let out='';
+  d.forEach((s,i)=>{let y=base;const x=i*(bw+gap);
+    [[s[0],.22],[s[1],.55],[s[2],1]].forEach(([v,o])=>{const hh=(v/max)*(base-2);y-=hh;out+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0.5,hh-1.5).toFixed(1)}" rx="1.5" style="fill:var(--meter)" opacity="${o}"/>`;});});
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Stacked bar chart of tokens per hour: cache read, input, output">${out}
+    <text x="0" y="${h-1}" style="fill:var(--t2);font:10px var(--sans)">08:00</text><text x="${w}" y="${h-1}" text-anchor="end" style="fill:var(--t2);font:10px var(--sans)">now</text></svg>
+    <div class="legend" style="margin-top:6px"><span><i style="background:var(--meter);opacity:.22"></i>Cache read</span><span><i style="background:var(--meter);opacity:.55"></i>Input</span><span><i style="background:var(--meter)"></i>Output</span></div>`;
+}
+function providerBars(p){
+  const max=p[0][1];
+  return p.map(([k,v])=>`<div style="display:grid;grid-template-columns:78px 1fr 52px;gap:8px;align-items:center;padding:3px 0"><span class="ty-callout">${k}</span><div style="height:8px;border-radius:4px;background:var(--track)"><div style="height:100%;width:${Math.max(2,v/max*100)}%;background:var(--meter);border-radius:4px"></div></div><span class="ty-callout tn" style="text-align:right">$${v.toFixed(2)}</span></div>`).join('');
+}
+function weekBars(d,w,h){
+  const max=44,n=d.length,gap=8,bw=(w-gap*(n-1))/n,base=h-14;
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Bar chart of daily spend, last 7 days">`+d.map(([l,v],i)=>{const x=i*(bw+gap),hh=v/max*(base-4);const last=i===n-1;return `<rect x="${x}" y="${base-hh}" width="${bw}" height="${hh}" rx="2" style="fill:var(--meter)" opacity="${last?1:.35}"/><text x="${x+bw/2}" y="${h-1}" text-anchor="middle" style="fill:var(--t2);font:10px var(--sans)">${l}</text>`;}).join('')+`<line x1="0" x2="${w}" y1="${base-40/max*(base-4)}" y2="${base-40/max*(base-4)}" stroke-dasharray="3 3" style="stroke:var(--t3)"/></svg>`;
+}
+
+/* ------------------------------------------------------------------ menu bar */
+function mbGlyph(levels,stalled=-1,dim=false){
+  const W=levels.length*5;
+  return `<svg width="${W}" height="16" viewBox="0 0 ${W} 16" aria-hidden="true" style="opacity:${dim?.4:1}">`+levels.map((l,i)=>{const x=i*5+.75;
+    if(i===stalled) return `<rect x="${x}" y="1" width="3.5" height="14" rx="1.75" fill="none" stroke="currentColor" stroke-width="1"/><circle cx="${x+1.75}" cy="12.2" r="1" fill="currentColor"/>`;
+    const fh=Math.max(1.5,13*l);return `<rect x="${x}" y="1" width="3.5" height="14" rx="1.75" fill="none" stroke="currentColor" stroke-width="1" opacity=".55"/><rect x="${x+.5}" y="${14.5-fh}" width="2.5" height="${fh}" rx="1.25" fill="currentColor"/>`;}).join('')+`</svg>`;
+}
+function mbar(mode,cls,label){
+  const ghost=`<span class="ghost" style="display:inline-flex;gap:14px;align-items:center"><span style="width:16px;height:10px;border-radius:2px;background:currentColor;opacity:.5"></span><span style="width:22px;height:10px;border-radius:3px;border:1.5px solid currentColor;opacity:.6"></span></span><span class="ghost tn">Tue 17 Nov 14:05</span>`;
+  return `<div style="width:100%;max-width:560px"><div class="mbar ${mode}">${label}${ghost}</div><div class="cap" style="text-align:left;color:${mode==='l'?'#3A3A3C':'#C7C7CC'}">${cls}</div></div>`;
+}
+function mbarsFor(mode){
+  const tri=c=>`<span class="sym sm" style="color:${c||'currentColor'};--sym-cut:${mode==='l'?'#F6F6F6':'#1E1E20'}"><svg><use href="#i-warn"/></svg></span>`;
+  return [
+    mbar(mode,'Calm · glyph only (default)',`<span class="it">${mbGlyph([.72,.38,.12])}</span>`),
+    mbar(mode,'Calm · Agents readout',`<span class="it">${mbGlyph([.72,.38,.12])}<span>3</span></span>`),
+    mbar(mode,'Calm · Spend readout',`<span class="it">${mbGlyph([.72,.38,.12])}<span>$16.91</span></span>`),
+    mbar(mode,'Needs you · stalled bar hollow + ! + count',`<span class="it">${mbGlyph([.72,.41,.38,.93],1)}${tri()}<span>2</span></span>`),
+    mbar(mode,'Needs you · optional tint (Settings, off by default)',`<span class="it">${mbGlyph([.72,.41,.38,.93],1)}${tri(mode==='l'?'#FF3B30':'#FF453A')}<span>2</span></span>`),
+    mbar(mode,'Popover open · system selection highlight',`<span class="it sel">${mbGlyph([.72,.41,.38,.93],1)}${tri()}<span>2</span></span>`),
+    mbar(mode,'No agents running',`<span class="it">${mbGlyph([0,0,0],-1,true)}</span>`),
+  ].join('');
+}
+
+/* ------------------------------------------------------------------ widgets */
+function wAgentsS(attn){
+  if(!attn) return `<div class="w s on-widget"><div class="hdr"><span>Agents</span><span class="tn">$16.91</span></div>
+    <div style="margin-top:auto"><div class="readout ty-readout-xl tn">3</div><div class="ty-sub c2">working · 2 workspaces</div></div>
+    <div style="display:flex;gap:6px;align-items:flex-end;height:44px;margin-top:10px">${[72,38,12,55].map(v=>`<div style="width:10px;height:100%;border-radius:5px;background:var(--track);position:relative;overflow:hidden"><i style="position:absolute;left:0;right:0;bottom:0;height:${v}%;background:var(--meter);border-radius:5px"></i></div>`).join('')}</div></div>`;
+  return `<div class="w s on-widget"><div class="hdr"><span>Agents</span><span class="ca" style="display:inline-flex;gap:4px;align-items:center">${sym('warn','ca','sm')}2</span></div>
+    <div style="margin-top:auto">${sym('warn','ca','lg')}<div class="ty-body" style="font-weight:600;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">deepseek-reasoner</div>
+    <div class="ty-sub ca tn">Stalled 3m 14s</div><div class="ty-sub c2">surge-widget</div></div>
+    <span class="btn" style="margin-top:10px;justify-content:center;font-size:12px">Nudge Agent</span></div>`;
+}
+function wRowM(a,ws){
+  const val=a.state==='stalled'?`<span class="btn" style="font-size:11px;min-height:20px;padding:0 8px">Nudge</span>`:`<span class="ty-sub tn ${a.state==='waiting'?'cc':'c2'}" style="font-weight:${a.state==='waiting'?600:400}">${a.state==='waiting'?'Waiting':a.val}</span>`;
+  return `<div style="display:grid;grid-template-columns:14px 1fr 84px 58px;gap:8px;align-items:center;height:25px">${stSym(a.state)}
+    <div style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span class="ty-callout" style="font-weight:600">${a.name}</span></div>
+    <div class="fuse ${fuseCls(a)}"><i style="width:${a.ctx}%"></i></div><div style="text-align:right">${val}</div></div>`;
+}
+function wAgentsM(){
+  const order=[[WS[0].agents[1],'surge-widget'],[WS[1].agents[0],'herdr-api'],[WS[0].agents[0],'surge-widget'],[WS[0].agents[2],'surge-widget']];
+  return `<div class="w m on-widget"><div class="hdr"><span>Agents · 5</span><span class="ca" style="display:inline-flex;gap:4px;align-items:center">${sym('warn','ca','sm')}2 need you</span></div>
+    <div style="margin-top:8px;display:flex;flex-direction:column">${order.map(([a,w])=>wRowM(a,w)).join('')}</div>
+    <div class="ty-sub c2" style="margin-top:auto;display:flex;justify-content:space-between"><span>+1 idle</span><span class="tn">$16.91 today</span></div></div>`;
+}
+function wAgentsL(){
+  const rows=WS.map(w=>`<div style="margin-top:8px"><div style="display:flex;justify-content:space-between" class="ty-sub"><span style="font-weight:600;color:var(--t1)">${w.name}</span><span class="c2 tn">${w.cost}</span></div>
+    ${w.agents.map((a,i)=>`<div style="display:grid;grid-template-columns:${i?'12px ':''}14px 1fr auto;gap:6px;align-items:center;margin-top:5px">${i?'<span class="c3 ty-sub">└</span>':''}${stSym(a.state)}<div style="min-width:0"><div style="display:flex;justify-content:space-between;gap:6px"><span class="ty-callout" style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</span><span class="ty-sub tn c2" style="white-space:nowrap">${ctxLabel(a)}</span></div><div class="fuse ${fuseCls(a)}" style="margin-top:3px"><i style="width:${a.ctx}%"></i></div></div>${a.state==='stalled'?'<span class="btn" style="font-size:11px;min-height:20px;padding:0 8px">Nudge</span>':'<span></span>'}</div>`).join('')}</div>`).join('');
+  return `<div class="w l on-widget"><div class="hdr"><span>Agents · All workspaces</span><span class="ca" style="display:inline-flex;gap:4px;align-items:center">${sym('warn','ca','sm')}2 need you</span></div>
+    ${rows}
+    <div style="margin-top:auto" class="tile"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="ty-sub c2">Throughput · 30 min</span><span class="ty-callout tn" style="font-weight:600">412 tok/s</span></div>${lineChart(THROUGHPUT,316,52).replace(/<text[^>]*>[^<]*<\/text>/g,'')}</div></div>`;
+}
+function wSpendS(){
+  return `<div class="w s on-widget"><div class="hdr"><span>Spend today</span>${sym('wallet','c2','sm')}</div>
+    <div style="margin-top:auto"><div class="readout ty-readout-xl tn">$16.91</div><div class="ty-sub c2 tn">of $40 budget</div>
+    <div class="minibar" style="height:8px;border-radius:4px;margin:8px 0"><i style="width:42%;border-radius:4px"></i></div>
+    <div class="ty-sub c2">Cache saved $3.10</div></div></div>`;
+}
+function wSpendM(){
+  return `<div class="w m on-widget" style="flex-direction:row;gap:14px"><div style="width:130px;display:flex;flex-direction:column"><div class="hdr"><span>Spend today</span></div>
+    <div style="margin-top:auto"><div class="readout ty-readout-xl tn">$16.91</div><div class="ty-sub c2 tn">of $40 budget</div><div class="minibar" style="height:8px;border-radius:4px;margin:8px 0 0"><i style="width:42%;border-radius:4px"></i></div></div></div>
+    <div style="flex:1;display:flex;flex-direction:column;min-width:0"><div class="ty-sub c2" style="font-weight:600">Last 7 days</div><div style="margin-top:4px">${weekBars(WEEK,190,70)}</div>
+    <div style="margin-top:auto" class="ty-sub tn"><div style="display:flex;justify-content:space-between"><span class="c2">DeepSeek</span><b class="c1">$18.40</b></div><div style="display:flex;justify-content:space-between"><span class="c2">OpenRouter</span><b class="cc">$4.80 · Low</b></div></div></div></div>`;
+}
+
+/* ------------------------------------------------------------------ mount */
+const put=(k,html,theme)=>document.querySelectorAll(`[data-r="${k}"]`).forEach(el=>{el.innerHTML=html; if(theme){el.classList.add(theme);} });
+const cutL='style="--sym-cut:#fff"', cutD='style="--sym-cut:#1C1C1E"';
+function figure(theme,html,cap,cut){return `<div class="figure"><div class="${theme}" ${cut||''}>${html}</div><div class="cap" style="color:${theme==='theme-light'?'#3A3A3C':'#C7C7CC'}">${cap}</div></div>`;}
+
+put('rowdemo', WS[0].agents.map((a,i)=>agentRow(a,i>0,i===2)).join(''));
+put('banners', banners());
+put('chart-throughput', lineChart(THROUGHPUT,300,90));
+put('chart-tokens', stackChart(TOKENS,300,80));
+put('chart-providers', providerBars(PROVIDERS));
+put('mbars-l', `<div style="display:flex;gap:40px;align-items:flex-end;color:#1D1D1F;margin-bottom:6px">${[['Calm',[.72,.38,.12],-1,false],['Needs you',[.72,.41,.38,.93],1,false],['No agents',[0,0,0],-1,true]].map(([l,v,s,d])=>`<div class="figure"><div style="transform:scale(4);transform-origin:bottom center;height:64px;display:flex;align-items:flex-end">${mbGlyph(v,s,d)}</div><div class="cap" style="color:#3A3A3C">${l} · glyph at 4×</div></div>`).join('')}</div>`+mbarsFor('l'));
+put('mbars-d', mbarsFor('d'));
+put('pops-l', figure('theme-light',`<div class="popnub"></div>${popAgents()}`,'Agents · light','style="--sym-cut:#F6F6F6"')+figure('theme-light',`<div class="popnub"></div>${popUsage()}`,'Usage · light','style="--sym-cut:#F6F6F6"')+figure('theme-light',`<div class="popnub"></div>${popSpend()}`,'Spend · light','style="--sym-cut:#F6F6F6"'));
+put('pops-d', figure('theme-dark',`<div class="popnub"></div>${popAgents()}`,'Agents · dark','style="--sym-cut:#2A2A2C"')+figure('theme-dark',`<div class="popnub"></div>${popUsage()}`,'Usage · dark','style="--sym-cut:#2A2A2C"')+figure('theme-dark',`<div class="popnub"></div>${popSpend()}`,'Spend · dark','style="--sym-cut:#2A2A2C"'));
+const widgetSet=(t,c)=>figure(t,wAgentsS(false),'Agents · Small · calm',c)+figure(t,wAgentsS(true),'Agents · Small · needs you',c)+figure(t,wAgentsM(),'Agents · Medium',c)+figure(t,wAgentsL(),'Agents · Large',c)+figure(t,wSpendS(),'Spend · Small',c)+figure(t,wSpendM(),'Spend · Medium',c);
+put('widgets-l', widgetSet('theme-light',cutL));
+put('widgets-d', widgetSet('theme-dark',cutD));
+put('widgets-v', `<div class="vibrant" style="display:flex;gap:28px;flex-wrap:wrap;justify-content:center">`+figure('theme-dark',wAgentsS(true),'Agents · Small','style="--sym-cut:#5a5a5a"')+figure('theme-dark',wAgentsM(),'Agents · Medium','style="--sym-cut:#5a5a5a"')+`</div>`);
+
+/* trip demo */
+const tb=document.getElementById('tripbtn'), td=document.getElementById('tripdemo');
+tb.addEventListener('click',()=>{const on=td.classList.toggle('tripped');tb.textContent=on?'Reset':'Trip';});
+</script>
+
+</body>
+</html>
