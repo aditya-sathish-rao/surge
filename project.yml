@@ -18,7 +18,10 @@ targets:
   SurgeMenuBarApp:
     type: application
     platform: macOS
-    sources: [App/SurgeMenuBarApp]
+    sources:
+      - path: App/SurgeMenuBarApp
+        excludes:
+          - Brand
     dependencies:
       - target: SurgeWidget
       - package: SurgeCore
@@ -40,6 +43,7 @@ targets:
         PRODUCT_NAME: Surge
         PRODUCT_BUNDLE_IDENTIFIER: $(SURGE_BUNDLE_ID_PREFIX).surge
         GENERATE_INFOPLIST_FILE: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
   SurgeWidget:
     type: app-extension
     platform: macOS

@@ -10,7 +10,8 @@ struct SurgeApp: App {
         MenuBarExtra {
             PlaceholderPopover()
         } label: {
-            Image(systemName: "bolt.fill")
+            Image("MenuBarIcon")
+                .accessibilityLabel("Surge")
         }
         .menuBarExtraStyle(.window)
     }
