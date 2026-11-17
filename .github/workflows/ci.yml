@@ -17,3 +17,19 @@ jobs:
         run: make test
       - name: Build app and widget
         run: make build
+
+  boundary-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Check package boundary
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          git diff --name-only "origin/${BASE_REF}...HEAD" \
+            | bash .github/scripts/check-pr-boundary.sh "$HEAD_REF"
