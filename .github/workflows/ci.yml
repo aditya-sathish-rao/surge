@@ -6,7 +6,8 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: macos-latest
+    # macOS arm64 hosted runners were capacity-queued and cancelled; verified green on 2026-11-17 with Xcode 26.6 (run 44139284324).
+    runs-on: macos-26-intel
     steps:
       - uses: actions/checkout@v4
       - name: Install tools
