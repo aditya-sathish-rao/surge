@@ -1,3 +1,4 @@
+import CoreText
 import SwiftUI
 
 public enum SurgeColors {
@@ -44,14 +45,76 @@ public enum SurgeInk {
     }
 }
 
+public enum SurgeWeight: CGFloat, CaseIterable, Sendable {
+    case light = 300
+    case clear = 350
+    case regular = 400
+    case medium = 500
+    case semibold = 600
+
+    /// The closest standard SwiftUI weight. Clear 350 has no standard weight.
+    public var standardWeight: Font.Weight {
+        switch self {
+        case .light: .light
+        case .clear: .regular
+        case .regular: .regular
+        case .medium: .medium
+        case .semibold: .semibold
+        }
+    }
+}
+
+public enum SurgeFontRole: Sendable {
+    case sans
+    case mono
+}
+
 public enum SurgeTypography {
-    public static let sansFamilyName = "Inter Tight"
+    public static let sansFamilyName = "Geist"
     public static let monoFamilyName = "Fira Code"
     public static let minimumSize: CGFloat = 10
     public static let widgetMinimumSize: CGFloat = 11
 
-    public static func sans(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .custom(sansFamilyName, fixedSize: size).weight(weight)
+    public static func sans(_ size: CGFloat, weight: SurgeWeight = .regular) -> Font {
+        resolvedFont(
+            family: sansFamilyName,
+            role: .sans,
+            size: size,
+            weight: weight,
+            isAvailable: isFamilyAvailable(sansFamilyName)
+        )
+    }
+
+    public static func mono(_ size: CGFloat, weight: SurgeWeight = .regular) -> Font {
+        resolvedFont(
+            family: monoFamilyName,
+            role: .mono,
+            size: size,
+            weight: weight,
+            isAvailable: isFamilyAvailable(monoFamilyName)
+        )
+    }
+
+    /// Picks the system font when the family is missing, otherwise the custom family with a variable weight.
+    public static func resolvedFont(
+        family: String,
+        role: SurgeFontRole,
+        size: CGFloat,
+        weight: SurgeWeight,
+        isAvailable: Bool
+    ) -> Font {
+        guard isAvailable else {
+            switch role {
+            case .sans:
+                return .system(size: size, weight: weight.standardWeight)
+            case .mono:
+                return .system(size: size, weight: weight.standardWeight, design: .monospaced)
+            }
+        }
+        if weight == .clear, let variable = variableFont(family: family, size: size, weight: weight.rawValue) {
+            return variable
+        }
+        return .custom(family, fixedSize: size).weight(weight.standardWeight)
     }
 
     public static func displayTracking(forSize size: CGFloat) -> CGFloat {
@@ -61,12 +124,41 @@ public enum SurgeTypography {
     public static let readoutXL = sans(40, weight: .light)
     public static let readoutL = sans(28, weight: .light)
     public static let readoutM = sans(22, weight: .light)
-    public static let title = sans(15)
+    public static let title = sans(15, weight: .clear)
     public static let body = sans(13)
     public static let meta = sans(11)
     public static let label = sans(10)
     public static let widgetMeta = sans(11)
-    public static let path = Font.custom(monoFamilyName, fixedSize: 11)
+    public static let path = mono(11)
+
+    private static let weightAxisIdentifier = 0x7767_6874  // 'wght'
+
+    private static func isFamilyAvailable(_ family: String) -> Bool {
+        let font = CTFontCreateWithName(family as CFString, 13, nil)
+        let resolvedFamily = CTFontCopyFamilyName(font) as String
+        return resolvedFamily.caseInsensitiveCompare(family) == .orderedSame
+    }
+
+    private static func variableFont(family: String, size: CGFloat, weight: CGFloat) -> Font? {
+        let base = CTFontCreateWithName(family as CFString, size, nil)
+        let resolvedFamily = CTFontCopyFamilyName(base) as String
+        guard resolvedFamily.caseInsensitiveCompare(family) == .orderedSame else { return nil }
+        guard
+            let axes = CTFontCopyVariationAxes(base) as? [[String: Any]],
+            axes.contains(where: { axis in
+                let identifier = axis[kCTFontVariationAxisIdentifierKey as String] as? NSNumber
+                return identifier?.intValue == weightAxisIdentifier
+            })
+        else {
+            return nil
+        }
+
+        let variation = [NSNumber(value: weightAxisIdentifier): NSNumber(value: Double(weight))]
+        let attributes = [kCTFontVariationAttribute: variation] as CFDictionary
+        let baseDescriptor = CTFontDescriptorCreateWithNameAndSize(family as CFString, size)
+        let descriptor = CTFontDescriptorCreateCopyWithAttributes(baseDescriptor, attributes)
+        return Font(CTFontCreateWithFontDescriptor(descriptor, size, nil))
+    }
 }
 
 public enum SurgeSpacing {

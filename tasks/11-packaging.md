@@ -12,7 +12,7 @@ Ship a notarized, non-sandboxed build the user can install.
 
 - Build a DMG and a Homebrew Cask formula. Both non-sandboxed, both notarized. Notarization does not need the sandbox.
 - Document the non-sandboxed reason in the install instructions: Surge needs to read `~/.claude` and the local process table. Not on the Mac App Store.
-- Fonts: if Beausite Classic is licensed, bundle the font files in **both** the app and the widget extension, each with its own `ATSApplicationFontsPath` in `Info.plist`, since the two bundles do not share resources. If not, ship Inter Tight with only a font-mapping change in `SurgeCore` tokens.
+- Fonts: if Beausite Classic is licensed, bundle the font files in **both** the app and the widget extension, each with its own `ATSApplicationFontsPath` in `Info.plist`, since the two bundles do not share resources. If not, ship Geist with only a font-mapping change in `SurgeCore` tokens.
 - App Group entitlement shared by app and widget, scoped to the one snapshot container.
 - App icon is a placeholder until the user supplies one.
 
