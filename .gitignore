@@ -24,3 +24,11 @@ build/
 # Secrets
 .env
 .env.*
+
+# Generated from project.yml by XcodeGen
+Surge.xcodeproj/
+App/SurgeMenuBarApp/Info.plist
+Widget/SurgeWidget/Info.plist
+
+# Personal signing settings
+Config/Local.xcconfig

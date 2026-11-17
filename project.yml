@@ -1,0 +1,79 @@
+name: Surge
+options:
+  bundleIdPrefix: com.adityarao
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+packages:
+  SurgeCore: { path: Packages/SurgeCore }
+  SurgeIngestTailer: { path: Packages/SurgeIngestTailer }
+  SurgeIngestProxy: { path: Packages/SurgeIngestProxy }
+  SurgeWallets: { path: Packages/SurgeWallets }
+  SurgeUI: { path: Packages/SurgeUI }
+  SurgeStateStore: { path: Packages/SurgeStateStore }
+targets:
+  SurgeMenuBarApp:
+    type: application
+    platform: macOS
+    sources: [App/SurgeMenuBarApp]
+    dependencies:
+      - target: SurgeWidget
+      - package: SurgeCore
+      - package: SurgeIngestTailer
+      - package: SurgeIngestProxy
+      - package: SurgeWallets
+      - package: SurgeUI
+      - package: SurgeStateStore
+    info:
+      path: App/SurgeMenuBarApp/Info.plist
+      properties:
+        CFBundleDisplayName: Surge
+        LSUIElement: true
+        LSApplicationCategoryType: public.app-category.developer-tools
+    entitlements:
+      path: App/SurgeMenuBarApp/SurgeMenuBarApp.entitlements
+    settings:
+      base:
+        PRODUCT_NAME: Surge
+        PRODUCT_BUNDLE_IDENTIFIER: $(SURGE_BUNDLE_ID_PREFIX).surge
+        GENERATE_INFOPLIST_FILE: YES
+  SurgeWidget:
+    type: app-extension
+    platform: macOS
+    sources: [Widget/SurgeWidget]
+    dependencies:
+      - package: SurgeCore
+      - package: SurgeUI
+    info:
+      path: Widget/SurgeWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Surge
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Widget/SurgeWidget/SurgeWidget.entitlements
+    settings:
+      base:
+        PRODUCT_NAME: SurgeWidget
+        PRODUCT_BUNDLE_IDENTIFIER: $(SURGE_BUNDLE_ID_PREFIX).surge.widget
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  Surge:
+    build:
+      targets:
+        SurgeMenuBarApp: all
+    run:
+      config: Debug
+      executable: SurgeMenuBarApp
+    test:
+      config: Debug
+      targets:
+        - package: SurgeCore/SurgeCoreTests
+        - package: SurgeIngestTailer/SurgeIngestTailerTests
+        - package: SurgeIngestProxy/SurgeIngestProxyTests
+        - package: SurgeWallets/SurgeWalletsTests
+        - package: SurgeUI/SurgeUITests
+        - package: SurgeStateStore/SurgeStateStoreTests

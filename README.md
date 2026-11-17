@@ -4,7 +4,7 @@ A native macOS menu bar app and desktop widget that shows what your coding agent
 
 Surge is built for the pattern of one orchestrator (for example Claude Code) fanning work out to cheaper or specialised models over DeepSeek and OpenRouter. It watches all of them in one place so you do not have to tail logs or open three billing dashboards.
 
-> Status: pre-implementation. The product and technical requirements are written, the Xcode project does not exist yet. See [Roadmap](#roadmap).
+> Status: scaffolded. The Xcode project, package stubs and a placeholder menu bar item and widget build and run. No real features yet. See [Roadmap](#roadmap) and [`tasks/`](tasks/).
 
 ## Platform
 
@@ -95,7 +95,7 @@ All product and engineering requirements live in [`docs/`](docs/). These files a
 | [`docs/surge-design-system.html`](docs/surge-design-system.html) | Visual and interaction reference |
 | [`docs/surge.pdf`](docs/surge.pdf) | Original architecture blueprint |
 
-Where documents disagree, the PRD wins on scope and behaviour and the TRD wins on architecture. The design file currently in `docs/` is v0.1. It still shows features the PRD removed for v1.0 (Nudge Agent, a daily budget, Claude 5-hour plan gauges, system-colour providers). Use it for layout, spacing, typography rules, the Fuse and accessibility, not for scope.
+Where documents disagree, the PRD wins. The TRD covers architecture where the PRD is silent, and the design file (v0.2) is the only visual and interaction reference. For example, the PRD allows a short text readout in the menu bar while the design file says one number, so the PRD applies.
 
 ## Roadmap
 
@@ -115,7 +115,7 @@ The TRD (section 15) breaks this into phases that let several agents build in pa
 - A Mac running macOS 14 or later
 - Full Xcode (not only the command line tools), selected as the active developer directory
 - Node.js, only to install the agent skills below
-- SwiftLint and swift-format: `brew install swiftlint swift-format`
+- XcodeGen, SwiftLint and swift-format: `brew install xcodegen swiftlint swift-format`
 
 If `xcodebuild` reports that it requires Xcode, point it at the app:
 
@@ -135,20 +135,40 @@ npx skills add dickwu/apple-design-skill
 
 ### Running the app
 
-The Xcode project is created in the scaffolding phase. Once it exists:
+The Xcode project is generated from `project.yml` and is not committed. No simulator is needed.
 
-1. Open `Surge.xcodeproj` in Xcode.
-2. Select the `Surge` scheme and the `My Mac` destination. No simulator is needed.
-3. Press Run. The Surge glyph appears in the menu bar. Click it to open the popover.
-4. To try the widget, right-click the desktop, choose Edit Widgets, and add Surge.
+From the terminal:
+
+```sh
+make run     # generate the project, build, and launch Surge
+make stop    # quit it
+```
+
+The app has no Dock icon. Look for the bolt in the menu bar and click it to open the popover. It keeps running until you choose Quit Surge in the popover or run `make stop`.
+
+From Xcode:
+
+1. Run `make project`, then open `Surge.xcodeproj`.
+2. Pick the `Surge` scheme and the `My Mac` destination, then press Run (Cmd+R).
+3. Stopping the run in Xcode quits the app. To keep it running without Xcode open, use `make run`.
+
+Signing defaults to "Sign to Run Locally", which is enough to run the menu bar app and see the widget in the widget gallery. Local development stays unsigned until the MVP. When you are ready for a signed build, add your Apple ID in Xcode (Settings, Accounts), then create `Config/Local.xcconfig` (not committed) with:
+
+```
+CODE_SIGN_STYLE = Automatic
+DEVELOPMENT_TEAM = YOURTEAMID
+```
+
+Run `make project` again. The bundle ID prefix is `SURGE_BUNDLE_ID_PREFIX` in `Config/Base.xcconfig`. To add the widget, right-click the desktop, choose Edit Widgets, and add Surge.
 
 Early milestones run on mock data, so you can watch the interface take shape before any live ingestion exists.
 
-### Tests
+### Tests and checks
 
 ```sh
-swift test --package-path Packages/SurgeCore
-xcodebuild test -scheme Surge -destination 'platform=macOS'
+make test    # run the tests of every package
+make lint    # SwiftLint and swift-format, zero warnings allowed
+make format  # apply swift-format
 ```
 
 ## Contributing

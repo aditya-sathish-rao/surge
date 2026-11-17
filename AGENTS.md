@@ -7,8 +7,24 @@ Surge is a native macOS 14+ menu bar app and desktop widget that monitors coding
 - `docs/` is read-only. Never create, edit, rename, move or delete anything in it: the PRD, the TRD, the design file or the blueprint. This applies to every agent and every tool, including shell commands.
 - Before starting work, read the parts of `docs/Surge_PRD.docx` and `docs/Surge_TRD.docx` that cover the task. Build what they say.
 - If the documents are unclear, contradict each other, or you think they are wrong, stop and ask the user. Do not guess and do not write your own decision into the repo.
-- Precedence when documents disagree: the PRD wins on scope and behaviour, the TRD wins on architecture. The design file in `docs/` is v0.1 and is stale on scope (see README). Use it for layout, spacing, typography rules, the Fuse and accessibility only.
+- Precedence when documents disagree: the PRD v1.0 wins on every conflict. The TRD decides architecture where the PRD is silent. `docs/surge-design-system.html` (v0.2) is the only design reference: follow it for visuals, spacing, typography, colour, the Fuse, motion, accessibility and writing, but where it disagrees with the PRD, follow the PRD. Known case: the menu bar shows the short text readout from the PRD, not one number.
 - The target is macOS 14 or later with Swift 6. Do not add iOS, iPadOS or watchOS targets.
+- Until the MVP, development is local only: no Apple ID, no signing identity, no App Group entitlement. Do not add anything that needs a developer team.
+
+## Project state and decisions
+
+Current state: the scaffold is done. The Xcode project is generated from `project.yml`, the six Swift packages exist as empty stubs, and the app and widget targets are placeholders that build and run. Real work is split into `tasks/`, one file per work stream. Start with `tasks/README.md` for the order and rules.
+
+Decisions already made by the user. Do not reopen them:
+
+- The PRD v1.0 wins on every conflict with the TRD or the design file.
+- `docs/surge-design-system.html` (v0.2) is the only design reference. There is no other version.
+- The menu bar shows the PRD's short text readout (for example "1 Orch, 2 Workers, $1.42"), not a single number.
+- Surge is read-only. No Nudge Agent button, no action on any agent, no budget, no overall balance, no Claude plan gauges.
+- One widget, "Surge", in Small, Medium and Large. Cards are dark in both appearances.
+- Typeface is Inter Tight until Beausite Classic is licensed. Colours and fonts come from `SurgeCore` tokens.
+- Development is local and unsigned until the MVP. The App Group, Developer ID and notarization wait until then. For local runs the snapshot goes to `~/Library/Application Support/Surge/snapshot.json` behind one location type, and the user must confirm that approach before it is built.
+- Use `make run`, `make test` and `make lint`. Run `make project` after changing `project.yml`.
 
 ## Code quality
 

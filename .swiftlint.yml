@@ -1,0 +1,11 @@
+included:
+  - Packages
+  - App
+  - Widget
+excluded:
+  - "**/.build"
+disabled_rules:
+  - trailing_comma
+line_length:
+  warning: 120
+  error: 140

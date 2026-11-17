@@ -1,0 +1,11 @@
+SURGE_BUNDLE_ID_PREFIX = com.adityarao
+MACOSX_DEPLOYMENT_TARGET = 14.0
+MARKETING_VERSION = 0.1.0
+CURRENT_PROJECT_VERSION = 1
+SWIFT_VERSION = 6.0
+ENABLE_HARDENED_RUNTIME = YES
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+
+// Default is Sign to Run Locally. Personal overrides (CODE_SIGN_STYLE = Automatic, DEVELOPMENT_TEAM) live in Local.xcconfig, which is not committed.
+#include? "Local.xcconfig"
