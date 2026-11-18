@@ -36,4 +36,4 @@ One file per work stream, taken from the TRD build plan (section 15). Hand one f
 - Menu bar readout: use the short text readout from the PRD (for example "1 Orch, 2 Workers, $1.42"). The design file says one number only. The PRD applies.
 - No Nudge Agent button or any action on an agent anywhere.
 - Development is local until the MVP. No Apple ID and no signing. The widget already shows in the gallery with the default "Sign to Run Locally" setting. App Group and Developer ID work wait until signing exists.
-- Typeface: Beausite Classic is unlicensed, so use Geist as the PRD allows. Fira Code is the mono face for strings typed in a terminal. Fonts and colours come from `SurgeCore` tokens so the swap later is one change.
+- Typeface: Beausite Classic is unlicensed, so use Inter Tight as the PRD allows. Fonts and colours come from `SurgeCore` tokens so the swap later is one change.
