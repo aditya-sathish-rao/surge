@@ -18,7 +18,13 @@ targets:
   SurgeMenuBarApp:
     type: application
     platform: macOS
-    sources: [App/SurgeMenuBarApp]
+    sources:
+      - path: App/SurgeMenuBarApp
+        excludes:
+          - Fonts
+      - path: App/SurgeMenuBarApp/Fonts
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: SurgeWidget
       - package: SurgeCore
@@ -33,6 +39,7 @@ targets:
         CFBundleDisplayName: Surge
         LSUIElement: true
         LSApplicationCategoryType: public.app-category.developer-tools
+        ATSApplicationFontsPath: Fonts
     entitlements:
       path: App/SurgeMenuBarApp/SurgeMenuBarApp.entitlements
     settings:
@@ -43,7 +50,13 @@ targets:
   SurgeWidget:
     type: app-extension
     platform: macOS
-    sources: [Widget/SurgeWidget]
+    sources:
+      - path: Widget/SurgeWidget
+        excludes:
+          - Fonts
+      - path: Widget/SurgeWidget/Fonts
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: SurgeCore
       - package: SurgeUI
@@ -53,6 +66,7 @@ targets:
         CFBundleDisplayName: Surge
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        ATSApplicationFontsPath: Fonts
     entitlements:
       path: Widget/SurgeWidget/SurgeWidget.entitlements
     settings:
