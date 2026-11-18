@@ -1,1 +1,30 @@
-{}
+{
+  "claude-sonnet": {
+    "contextWindow": 200000,
+    "inputPerMillion": 3.00,
+    "outputPerMillion": 15.00,
+    "cacheReadPerMillion": 0.30,
+    "stallThresholdSeconds": 120
+  },
+  "claude-sonnet-5-5": {
+    "contextWindow": 200000,
+    "inputPerMillion": 2.00,
+    "outputPerMillion": 10.00,
+    "cacheReadPerMillion": 0.10,
+    "stallThresholdSeconds": 120
+  },
+  "deepseek-chat": {
+    "contextWindow": 128000,
+    "inputPerMillion": 0.27,
+    "outputPerMillion": 1.10,
+    "cacheReadPerMillion": 0.07,
+    "stallThresholdSeconds": 120
+  },
+  "deepseek-reasoner": {
+    "contextWindow": 128000,
+    "inputPerMillion": 0.55,
+    "outputPerMillion": 2.19,
+    "cacheReadPerMillion": 0.14,
+    "stallThresholdSeconds": 300
+  }
+}
