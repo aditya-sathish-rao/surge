@@ -104,6 +104,11 @@ struct TurnFixture {
     var cacheRead: Int?
     var cacheCreation: Int?
     var timestamp = "2026-11-18T10:00:00.000Z"
+    /// The record's own id. Nil leaves it out, as older transcripts do.
+    var uuid: String?
+    var parentUuid: String?
+    var isSidechain: Bool?
+    var version: String?
 }
 
 enum TranscriptFixtures {
@@ -121,7 +126,7 @@ enum TranscriptFixtures {
         if let cacheCreation = turn.cacheCreation {
             usage["cache_creation_input_tokens"] = cacheCreation
         }
-        let record: [String: Any] = [
+        var record: [String: Any] = [
             "type": "assistant",
             "sessionId": turn.session,
             "cwd": turn.cwd,
@@ -130,6 +135,27 @@ enum TranscriptFixtures {
                 "model": turn.model,
                 "usage": usage,
             ],
+        ]
+        if let uuid = turn.uuid { record["uuid"] = uuid }
+        if let parentUuid = turn.parentUuid { record["parentUuid"] = parentUuid }
+        if let isSidechain = turn.isSidechain { record["isSidechain"] = isSidechain }
+        if let version = turn.version { record["version"] = version }
+        let data = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
+        return String(bytes: data, encoding: .utf8) ?? ""
+    }
+
+    /// Claude Code's own running total, written after a turn. `hasUnknownModelCost` disqualifies it.
+    static func costState(
+        session: String,
+        totalCostUSD: Double,
+        hasUnknownModelCost: Bool = false
+    ) throws -> String {
+        let record: [String: Any] = [
+            "type": "cost-state",
+            "sessionId": session,
+            "timestamp": "2026-11-18T10:00:01.000Z",
+            "totalCostUSD": totalCostUSD,
+            "hasUnknownModelCost": hasUnknownModelCost,
         ]
         let data = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
         return String(bytes: data, encoding: .utf8) ?? ""
@@ -143,69 +169,6 @@ enum TranscriptFixtures {
         ]
         let data = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
         return String(bytes: data, encoding: .utf8) ?? ""
-    }
-}
-
-/// Collects events from the tailer stream so tests can wait for a count without cancelling
-/// the shared stream, and can assert that nothing arrived inside a short window.
-final class EventRecorder: Sendable {
-    private let storage = OSAllocatedUnfairLock<[TailerEvent]>(initialState: [])
-    private let consumer: Task<Void, Never>
-
-    init(_ stream: AsyncStream<TailerEvent>) {
-        let storage = storage
-        consumer = Task {
-            for await event in stream {
-                storage.withLock { $0.append(event) }
-            }
-        }
-    }
-
-    deinit {
-        consumer.cancel()
-    }
-
-    func wait(forCount count: Int, timeout: Duration = .seconds(5)) async -> [TailerEvent] {
-        let deadline = ContinuousClock.now.advanced(by: timeout)
-        while ContinuousClock.now < deadline {
-            let snapshot = storage.withLock { $0 }
-            if snapshot.count >= count {
-                return snapshot
-            }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-        return storage.withLock { $0 }
-    }
-
-    func recordedEvents() -> [TailerEvent] {
-        storage.withLock { $0 }
-    }
-}
-
-func turns(in events: [TailerEvent]) -> [TurnAppended] {
-    events.compactMap { event in
-        if case .turnAppended(let turn) = event {
-            return turn
-        }
-        return nil
-    }
-}
-
-func appeared(in events: [TailerEvent]) -> [SessionDescriptor] {
-    events.compactMap { event in
-        if case .sessionAppeared(let descriptor) = event {
-            return descriptor
-        }
-        return nil
-    }
-}
-
-func ended(in events: [TailerEvent]) -> [String] {
-    events.compactMap { event in
-        if case .sessionEnded(let sessionID, _) = event {
-            return sessionID
-        }
-        return nil
     }
 }
 

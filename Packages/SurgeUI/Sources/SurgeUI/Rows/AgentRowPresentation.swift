@@ -18,6 +18,10 @@ public struct AgentRowPresentation: Sendable, Equatable {
     public let trailingText: String
     public let fuse: FusePresentation
     public let needsYou: Bool
+    /// Which account pays, or why none is named. Nil when there is nothing worth saying.
+    public let billingText: String?
+    /// The harness that produced the records, when the source could name it.
+    public let harnessText: String?
     public let accessibilityLabel: String
 
     public init(
@@ -49,10 +53,43 @@ public struct AgentRowPresentation: Sendable, Equatable {
             lastActivityAt: agent.lastTokenAt
         )
         let providerName = agent.providerKind.name
-        let costClause = agent.costSource == nil ? " Cost unavailable for \(modelName)." : ""
+        billingText = Self.billingText(for: agent)
+        harnessText = agent.harness?.kind.name
         accessibilityLabel =
             "\(modelName), \(role), \(workspaceName), \(providerName). "
-            + "\(statusClause) \(fuse.contextClause).\(costClause)"
+            + "\(statusClause) \(fuse.contextClause).\(Self.costClause(for: agent, modelName: modelName))"
+    }
+
+    /// Which account pays for this agent's work, in the words the panel uses. A figure that no
+    /// account owns says so rather than implying one.
+    public static func billingText(for agent: AgentNode) -> String? {
+        if let account = agent.billingAccount {
+            return account.name
+        }
+        switch agent.costAuthority {
+        case .harnessReported:
+            return "Harness figure, no single account matched"
+        case .estimated where agent.harness != nil:
+            return "Estimated, no single account matched"
+        default:
+            return nil
+        }
+    }
+
+    /// The cost half of the VoiceOver sentence: the account, the harness-only figure, or the fact
+    /// that nothing could price the work.
+    public static func costClause(for agent: AgentNode, modelName: String) -> String {
+        if agent.costSource == nil {
+            let billed = agent.billingAccount.map { " Billed to \($0.name)." } ?? ""
+            return " Cost unavailable for \(modelName)." + billed
+        }
+        if let account = agent.billingAccount {
+            return " Billed to \(account.name)."
+        }
+        if agent.costAuthority == .harnessReported {
+            return " Priced by the harness, not attributed to an account."
+        }
+        return ""
     }
 
     public static func trailingText(

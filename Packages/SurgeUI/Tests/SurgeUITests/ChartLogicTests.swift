@@ -76,16 +76,18 @@ struct ChartLogicTests {
 
     @Test func aShareCarriesTheSourceItWasGiven() {
         let day = DailySpendPoint(date: UITestFixtures.now, spendByProvider: ["openrouter": 0.40])
-        let shares = SpendShares.make(for: day, source: .actual)
+        let shares = SpendShares.make(for: day, source: .providerReported)
 
-        #expect(shares[0].amountText == "$0.40 actual")
-        #expect(shares[0].accessibilityLabel == "OpenRouter, $0.40, actual, 100 percent")
+        #expect(shares[0].amountText == "$0.40 provider")
+        #expect(shares[0].accessibilityLabel == "OpenRouter, $0.40, provider reported, 100 percent")
     }
 
     @Test func theChartHeadlineCarriesItsLabel() {
         #expect(DailySpendChart.headline(todayUSD: 1.42, source: .estimated) == "$1.42 est. today")
-        #expect(DailySpendChart.headline(todayUSD: 0, source: .derived) == "$0.00 derived today")
-        #expect(DailySpendChart.headline(todayUSD: 2.00, source: .actual) == "$2.00 actual today")
+        #expect(DailySpendChart.headline(todayUSD: 0, source: .balanceDerived) == "$0.00 derived today")
+        #expect(DailySpendChart.headline(todayUSD: 2.00, source: .providerReported) == "$2.00 provider today")
+        #expect(DailySpendChart.headline(todayUSD: 1.00, source: .harnessReported) == "$1.00 harness today")
+        #expect(DailySpendChart.headline(todayUSD: 1.00, source: .quotaWindow) == "$1.00 quota today")
     }
 
     @Test func dailySpendRangeCarriesItsTitleAndLength() {

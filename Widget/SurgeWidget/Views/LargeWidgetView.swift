@@ -31,7 +31,7 @@ struct LargeWidgetView: View {
             }
             Spacer(minLength: SurgeSpacing.space1)
             spendChart
-            WidgetBalancesRow(balances: snapshot.balances)
+            WidgetBalancesRow(balances: snapshot.balances, now: now)
             WidgetFreshnessCaption(generatedAt: snapshot.generatedAt, now: now)
         }
     }

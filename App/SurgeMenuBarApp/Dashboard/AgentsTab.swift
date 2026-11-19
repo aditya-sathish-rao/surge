@@ -157,6 +157,13 @@ private struct AgentRowItem: View {
 
     private var detail: some View {
         VStack(alignment: .leading, spacing: SurgeSpacing.space1) {
+            detailLine("Spend", SurgeFormatting.spend(agent.spendFigure))
+            if let billing = presentation.billingText {
+                detailLine("Billed to", billing)
+            }
+            if let harness = presentation.harnessText {
+                detailLine("Harness", harness)
+            }
             detailLine("Tokens", TokenCounts.text(for: agent))
             detailLine("Session ID", agent.id, monospaced: true)
             detailLine("Working directory", workspace.projectPath, monospaced: true)

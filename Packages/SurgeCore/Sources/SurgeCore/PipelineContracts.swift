@@ -19,6 +19,11 @@ public struct SessionDescriptor: Identifiable, Codable, Sendable, Equatable {
     public let modelName: String
     public let maxContextWindow: Int
     public let occurredAt: Date
+    /// Which harness wrote this session, and by which transport. Nil for a source that cannot say.
+    public let harness: HarnessIdentity?
+    /// The session that spawned this one, when the harness records the link. A sub-agent inherits
+    /// its parent's billing account instead of resolving its own.
+    public let parentSessionID: String?
 
     public init(
         id: String,
@@ -26,7 +31,9 @@ public struct SessionDescriptor: Identifiable, Codable, Sendable, Equatable {
         provider: String,
         modelName: String,
         maxContextWindow: Int,
-        occurredAt: Date
+        occurredAt: Date,
+        harness: HarnessIdentity? = nil,
+        parentSessionID: String? = nil
     ) {
         self.id = id
         self.projectPath = projectPath
@@ -34,6 +41,8 @@ public struct SessionDescriptor: Identifiable, Codable, Sendable, Equatable {
         self.modelName = modelName
         self.maxContextWindow = maxContextWindow
         self.occurredAt = occurredAt
+        self.harness = harness
+        self.parentSessionID = parentSessionID
     }
 }
 
@@ -46,6 +55,13 @@ public struct TurnAppended: Codable, Sendable, Equatable {
     public let cacheHitTokens: Int
     public let currentContextTokens: Int
     public let occurredAt: Date
+    /// The record's own id within its harness. Repeats from branched, resumed or sub-agent writes
+    /// must not be counted twice, so the store de-duplicates on it inside a session tree.
+    public let eventID: String?
+    /// The harness's cumulative cost for the session at this turn, at its own list prices. The
+    /// store books only the increase. Claude Code's `totalCostUSD` is this figure, and it is not
+    /// the bill when the session is routed to a different provider.
+    public let harnessReportedCostUSD: Double?
 
     public init(
         sessionID: String,
@@ -54,7 +70,9 @@ public struct TurnAppended: Codable, Sendable, Equatable {
         outputTokens: Int,
         cacheHitTokens: Int,
         currentContextTokens: Int,
-        occurredAt: Date
+        occurredAt: Date,
+        eventID: String? = nil,
+        harnessReportedCostUSD: Double? = nil
     ) {
         self.sessionID = sessionID
         self.modelName = modelName
@@ -63,6 +81,8 @@ public struct TurnAppended: Codable, Sendable, Equatable {
         self.cacheHitTokens = cacheHitTokens
         self.currentContextTokens = currentContextTokens
         self.occurredAt = occurredAt
+        self.eventID = eventID
+        self.harnessReportedCostUSD = harnessReportedCostUSD
     }
 }
 
@@ -79,6 +99,8 @@ public struct WorkerDescriptor: Identifiable, Codable, Sendable, Equatable {
     public let projectPath: String
     public let parentSessionID: String?
     public let occurredAt: Date
+    /// A proxy worker is not a harness: it is whatever program pointed its base URL at Surge.
+    public let harness: HarnessIdentity?
 
     public init(
         id: String,
@@ -86,7 +108,8 @@ public struct WorkerDescriptor: Identifiable, Codable, Sendable, Equatable {
         modelName: String,
         projectPath: String,
         parentSessionID: String?,
-        occurredAt: Date
+        occurredAt: Date,
+        harness: HarnessIdentity? = nil
     ) {
         self.id = id
         self.provider = provider
@@ -94,6 +117,7 @@ public struct WorkerDescriptor: Identifiable, Codable, Sendable, Equatable {
         self.projectPath = projectPath
         self.parentSessionID = parentSessionID
         self.occurredAt = occurredAt
+        self.harness = harness
     }
 }
 

@@ -9,7 +9,7 @@ extension SurgeStateStore {
     func publish(now: Date) {
         purgeExpiredDone(now: now)
         let workspaces = exportedWorkspaces(now: now)
-        let balances = balanceRecords.values.sorted { $0.provider < $1.provider }
+        let balances = exportedBalances(now: now)
         guard workspaces != tree.workspaces || balances != tree.balances else { return }
         tree = StoreTree(
             generatedAt: now,
@@ -20,6 +20,13 @@ extension SurgeStateStore {
         for continuation in observers.values {
             continuation.yield(tree)
         }
+    }
+
+    /// Provider balances plus one row per subscription window. A quota account has no provider
+    /// balance, so its row comes from the window and never from an unavailable poll.
+    private func exportedBalances(now: Date) -> [AccountBalance] {
+        let providerRows = balanceRecords.values.filter { !isQuotaAccount($0.provider) }
+        return (providerRows + quotaBalances(now: now)).sorted { $0.provider < $1.provider }
     }
 
     func purgeExpiredDone(now: Date) {

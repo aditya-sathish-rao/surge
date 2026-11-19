@@ -71,10 +71,17 @@ public struct SpendByProviderBar: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: SurgeSpacing.space2) {
             SurgeSectionLabel("Spend by provider · today")
-            bar
-            VStack(alignment: .leading, spacing: SurgeSpacing.space1) {
-                ForEach(shares) { share in
-                    legendRow(share)
+            if shares.isEmpty {
+                // A card with only a heading reads as broken. Say the day is empty instead.
+                Text("No spend today")
+                    .font(SurgeUIFont.rowMeta)
+                    .foregroundStyle(SurgeInk.tertiary(contrastLevel))
+            } else {
+                bar
+                VStack(alignment: .leading, spacing: SurgeSpacing.space1) {
+                    ForEach(shares) { share in
+                        legendRow(share)
+                    }
                 }
             }
         }

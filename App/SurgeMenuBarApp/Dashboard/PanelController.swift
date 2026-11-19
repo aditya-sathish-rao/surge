@@ -33,6 +33,9 @@ final class PanelController: NSObject, NSWindowDelegate {
         if !panel.isVisible {
             panel.center()
         }
+        // A panel that grows as data arrives must stay on screen, or its header ends up below the
+        // display's bottom edge.
+        Self.clampToScreen(panel)
         panel.makeKeyAndOrderFront(nil)
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
@@ -43,6 +46,17 @@ final class PanelController: NSObject, NSWindowDelegate {
             return
         }
         show(filter: filter)
+    }
+
+    private static func clampToScreen(_ panel: NSPanel) {
+        guard let screen = panel.screen ?? NSScreen.main else { return }
+        let visible = screen.visibleFrame
+        var frame = panel.frame
+        frame.origin.x = min(max(frame.minX, visible.minX), visible.maxX - frame.width)
+        frame.origin.y = min(max(frame.minY, visible.minY), visible.maxY - frame.height)
+        if frame != panel.frame {
+            panel.setFrame(frame, display: true)
+        }
     }
 
     private func makePanel() -> NSPanel {

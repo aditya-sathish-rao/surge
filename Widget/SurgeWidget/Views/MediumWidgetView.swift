@@ -35,7 +35,7 @@ struct MediumWidgetView: View {
                 }
             }
             Spacer(minLength: SurgeSpacing.space1)
-            WidgetBalancesRow(balances: snapshot.balances)
+            WidgetBalancesRow(balances: snapshot.balances, now: now)
             WidgetFreshnessCaption(generatedAt: snapshot.generatedAt, now: now)
         }
     }

@@ -61,27 +61,60 @@ struct SpendTests {
         #expect(SpendAttribution.shares(dropUSD: 0.60, tokensByAgent: [:]).isEmpty)
     }
 
-    @Test func spendingKeepsTheThreeSourcesApart() {
+    @Test func spendingKeepsTheFiveSourcesApart() {
         var spend = SpendBySource()
-        spend.add(0.10, source: .actual)
-        spend.add(0.20, source: .derived)
+        spend.add(0.10, source: .providerReported)
+        spend.add(0.20, source: .balanceDerived)
         spend.add(0.30, source: .estimated)
+        spend.add(0.40, source: .harnessReported)
+        spend.add(0.50, source: .quotaWindow)
 
-        #expect(abs(spend.actualUSD - 0.10) < 0.000_001)
-        #expect(abs(spend.derivedUSD - 0.20) < 0.000_001)
+        #expect(abs(spend.providerReportedUSD - 0.10) < 0.000_001)
+        #expect(abs(spend.balanceDerivedUSD - 0.20) < 0.000_001)
         #expect(abs(spend.estimatedUSD - 0.30) < 0.000_001)
-        #expect(abs(spend.totalUSD - 0.60) < 0.000_001)
+        #expect(abs(spend.harnessReportedUSD - 0.40) < 0.000_001)
+        #expect(abs(spend.quotaWindowUSD - 0.50) < 0.000_001)
+        #expect(abs(spend.totalUSD - 1.50) < 0.000_001)
+        // Nothing can be booked as unavailable, so that case never enters a total.
+        spend.add(1.00, source: .unavailable)
+        #expect(abs(spend.totalUSD - 1.50) < 0.000_001)
+    }
+
+    @Test func aSnapshotNamesTheOldSourcesByTheirNewNames() throws {
+        let legacy = #"{"amountUSD":1.42,"source":"actual"}"#
+        let figure = try JSONDecoder().decode(SpendFigure.self, from: Data(legacy.utf8))
+        #expect(figure.source == .providerReported)
+
+        let derived = #"{"amountUSD":0.42,"source":"derived"}"#
+        let other = try JSONDecoder().decode(SpendFigure.self, from: Data(derived.utf8))
+        #expect(other.source == .balanceDerived)
+    }
+
+    @Test func aHarnessFigureOutranksALocalEstimateButNotAProviderBill() {
+        let figures = TurnFigures(providerReportedUSD: 0.04, harnessReportedUSD: 0.06, estimateUSD: 0.05)
+        let provider = BillingAccount.standard[2]
+        let attributed = BillingAttribution.account(provider, basis: .binding)
+
+        let booked = BillingResolver.book(figures, attribution: attributed)
+        #expect(booked?.source == .providerReported)
+        #expect(abs((booked?.amountUSD ?? 0) - 0.04) < 0.000_001)
+
+        let harnessOnly = BillingResolver.book(
+            TurnFigures(harnessReportedUSD: 0.06, estimateUSD: 0.05),
+            attribution: attributed
+        )
+        #expect(harnessOnly?.source == .harnessReported)
     }
 
     @Test func aTotalIsOnlyAsStrongAsItsWeakestPart() {
-        var actualOnly = SpendBySource()
-        actualOnly.add(1.00, source: .actual)
-        #expect(actualOnly.source == .actual)
+        var providerOnly = SpendBySource()
+        providerOnly.add(1.00, source: .providerReported)
+        #expect(providerOnly.source == .providerReported)
 
         var mixed = SpendBySource()
-        mixed.add(1.00, source: .actual)
-        mixed.add(0.50, source: .derived)
-        #expect(mixed.source == .derived)
+        mixed.add(1.00, source: .providerReported)
+        mixed.add(0.50, source: .balanceDerived)
+        #expect(mixed.source == .balanceDerived)
 
         mixed.add(0.25, source: .estimated)
         #expect(mixed.source == .estimated)
@@ -91,11 +124,11 @@ struct SpendTests {
         var spend = SpendBySource()
         spend.add(0.20, source: .estimated)
         spend.removeEstimate(0.20)
-        spend.add(0.11, source: .derived)
+        spend.add(0.11, source: .balanceDerived)
 
         #expect(abs(spend.estimatedUSD) < 0.000_001)
         #expect(abs(spend.totalUSD - 0.11) < 0.000_001)
-        #expect(spend.source == .derived)
+        #expect(spend.source == .balanceDerived)
     }
 
     @Test func aFigureNeverPrintsItsNumberWithoutALabel() {
@@ -121,7 +154,7 @@ struct SpendTests {
             modelName: "deepseek-chat",
             status: .working,
             estimatedCostUSD: 0.10,
-            costSource: .derived,
+            costSource: .balanceDerived,
             lastTokenAt: SurgeFixtures.referenceDate
         )
         let unknown = AgentNode(
@@ -139,7 +172,7 @@ struct SpendTests {
             orchestrator: known,
             workers: []
         )
-        #expect(complete.spendFigure?.source == .derived)
+        #expect(complete.spendFigure?.source == .balanceDerived)
         #expect(complete.spendFigure?.amountUSD == 0.10)
 
         let partial = WorkspaceSession(

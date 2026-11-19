@@ -61,6 +61,8 @@ struct SettingsView: View {
                 caption("Each account is measured on its own. Balances are never added together.")
             }
 
+            BillingSettingsSection(settings: settings)
+
             Section("Provider keys") {
                 ForEach(Self.keyProviders, id: \.self) { provider in
                     keyRow(for: provider)

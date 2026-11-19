@@ -7,7 +7,8 @@ import Testing
 struct BalancesTests {
     @Test func availableBalanceShowsTheAmount() {
         let presentation = BalancePresentation(
-            balance: AccountBalance(provider: "deepseek", amountUSD: 12.40, lastPolledAt: UITestFixtures.now)
+            balance: AccountBalance(provider: "deepseek", amountUSD: 12.40, lastPolledAt: UITestFixtures.now),
+            now: UITestFixtures.now
         )
 
         #expect(presentation.provider == .deepseek)
@@ -87,7 +88,8 @@ struct BalancesTests {
 
     @Test func anAmountNeverCarriesAReason() {
         let presentation = BalancePresentation(
-            balance: AccountBalance(provider: "deepseek", amountUSD: 12.40, lastPolledAt: UITestFixtures.now)
+            balance: AccountBalance(provider: "deepseek", amountUSD: 12.40, lastPolledAt: UITestFixtures.now),
+            now: UITestFixtures.now
         )
 
         #expect(presentation.reasonText == nil)
@@ -109,7 +111,7 @@ struct BalancesTests {
     }
 
     @Test func fixtureBalancesCoverAllThreeCases() {
-        let presentations = SurgeFixtures.balances.map(BalancePresentation.init)
+        let presentations = SurgeFixtures.balances.map { BalancePresentation(balance: $0, now: UITestFixtures.now) }
 
         #expect(presentations.map(\.amountText) == ["Balance unavailable", "$12.40", "$3.20"])
         #expect(presentations.map(\.qualifier) == [nil, nil, "Low"])
@@ -146,6 +148,57 @@ struct BalancesTests {
         #expect(presentation.usageText == "used $4.25")
         #expect(presentation.isUnavailable)
         #expect(presentation.accessibilityLabel == "OpenRouter, no key limit set, used $4.25")
+    }
+
+    @Test func aSubscriptionShowsBurnAndHeadroomInsteadOfAnUnavailableBalance() throws {
+        let now = UITestFixtures.now
+        let window = QuotaWindow(preset: .claudeMax5x, style: .reset, interval: 5 * 3600, limitUSD: 20)
+        var state = QuotaWindowState(window: window, startedAt: now.addingTimeInterval(-3600))
+        state.book(5.00)
+        let presentation = BalancePresentation(
+            balance: AccountBalance(
+                provider: "anthropic",
+                amountUSD: nil,
+                lastPolledAt: now,
+                quotaWindow: state
+            ),
+            now: now
+        )
+
+        #expect(presentation.providerName == "Claude Max 5x")
+        #expect(presentation.amountText == "$5.00 of $20.00")
+        #expect(presentation.isUnavailable == false)
+        #expect(presentation.reasonText == nil)
+        #expect(presentation.level == .normal)
+        #expect(presentation.qualifier == nil)
+        #expect(try #require(presentation.quotaFraction) > 0.24)
+        #expect(presentation.quotaText?.contains("25% used") == true)
+        #expect(presentation.quotaText?.contains("resets in 4h 0m") == true)
+        #expect(presentation.accessibilityLabel.contains("quota window"))
+        #expect(presentation.accessibilityLabel.contains("25 percent"))
+    }
+
+    @Test func aWindowNearItsCeilingReadsLowAndAtTheCeilingReadsAtLimit() {
+        let now = UITestFixtures.now
+        let window = QuotaWindow(preset: .custom, style: .reset, interval: 3600, limitUSD: 10)
+        var near = QuotaWindowState(window: window, startedAt: now)
+        near.book(8.50)
+        var full = QuotaWindowState(window: window, startedAt: now)
+        full.book(10.00)
+
+        let low = BalancePresentation(
+            balance: AccountBalance(provider: "anthropic", amountUSD: nil, lastPolledAt: now, quotaWindow: near),
+            now: now
+        )
+        let atLimit = BalancePresentation(
+            balance: AccountBalance(provider: "anthropic", amountUSD: nil, lastPolledAt: now, quotaWindow: full),
+            now: now
+        )
+
+        #expect(low.level == .low)
+        #expect(low.qualifier == "Low")
+        #expect(atLimit.level == .empty)
+        #expect(atLimit.qualifier == "At limit")
     }
 
     @Test func freshnessCaptionReadsLikeTheDesign() {

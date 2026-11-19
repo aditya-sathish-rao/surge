@@ -68,3 +68,27 @@ final class TranscriptFileWatcher: @unchecked Sendable {
         source.cancel()
     }
 }
+
+/// What the tailer keeps for one transcript file.
+struct FileState {
+    let sourceKind: TranscriptSourceKind
+    let provider: String
+    let transport: HarnessIdentity.Transport
+    let sessionID: String
+    var parentSessionID: String?
+    var projectPath: String?
+    var harnessVersion: String?
+    /// The last model named on a turn, so a re-published appearance still describes the session.
+    var lastModelName: String?
+    var reader: any TranscriptFileReader
+    var offset: UInt64
+    var pending: Data
+    var fileNumber: UInt64?
+    var appeared: Bool
+    var ended: Bool
+    var lastActivity: Date
+    var cost: SessionCostAccumulator
+    /// Record ids already counted. A branched or resumed write can repeat an id, and the same
+    /// tokens must never be added twice.
+    var seenEventIDs: Set<String>
+}

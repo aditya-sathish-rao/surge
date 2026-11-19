@@ -108,7 +108,8 @@ enum StoreFixture {
         clock: TestClock,
         pricing: PricingTable = StoreFixture.pricing,
         catalog: ModelCatalog = .empty,
-        thresholds: BalanceThresholds = BalanceThresholds()
+        thresholds: BalanceThresholds = BalanceThresholds(),
+        billing: BillingConfiguration = .standard
     ) -> TestPipelines {
         let tailer = TestPipeline<TailerEvent>()
         let proxy = TestPipeline<ProxyEvent>()
@@ -120,6 +121,7 @@ enum StoreFixture {
             pricing: pricing,
             catalog: catalog,
             balanceThresholds: thresholds,
+            billing: billing,
             clock: { clock.now }
         )
         return TestPipelines(tailer: tailer, proxy: proxy, wallets: wallets, store: store)
@@ -128,15 +130,22 @@ enum StoreFixture {
     static func session(
         _ id: String = "session-a",
         path: String = StoreFixture.projectPath,
+        model: String = "claude-sonnet",
+        provider: String = "anthropic",
+        parent: String? = nil,
+        harness: HarnessIdentity? = nil,
         at offset: TimeInterval = 0
     ) -> SessionDescriptor {
         SessionDescriptor(
             id: id,
             projectPath: path,
-            provider: "anthropic",
-            modelName: "claude-sonnet",
+            provider: provider,
+            modelName: model,
             maxContextWindow: 200_000,
-            occurredAt: date(offset)
+            occurredAt: date(offset),
+            harness: harness
+                ?? HarnessIdentity(kind: .claudeCode, version: "2.0.31", sessionID: id, transport: .jsonl),
+            parentSessionID: parent
         )
     }
 
@@ -165,7 +174,9 @@ enum StoreFixture {
         output: Int = 0,
         cache: Int = 0,
         context: Int = 0,
-        at offset: TimeInterval
+        at offset: TimeInterval,
+        eventID: String? = nil,
+        harnessReportedCostUSD: Double? = nil
     ) -> TurnAppended {
         TurnAppended(
             sessionID: sessionID,
@@ -174,7 +185,9 @@ enum StoreFixture {
             outputTokens: output,
             cacheHitTokens: cache,
             currentContextTokens: context,
-            occurredAt: date(offset)
+            occurredAt: date(offset),
+            eventID: eventID,
+            harnessReportedCostUSD: harnessReportedCostUSD
         )
     }
 
@@ -186,7 +199,8 @@ enum StoreFixture {
         output: Int = 0,
         cache: Int = 0,
         context: Int = 0,
-        at offset: TimeInterval
+        at offset: TimeInterval,
+        reportedCostUSD: Double? = nil
     ) -> ProxyUsage {
         ProxyUsage(
             workerID: workerID,
@@ -196,7 +210,8 @@ enum StoreFixture {
             outputTokens: output,
             cacheHitTokens: cache,
             currentContextTokens: context,
-            occurredAt: date(offset)
+            occurredAt: date(offset),
+            reportedCostUSD: reportedCostUSD
         )
     }
 
@@ -206,6 +221,19 @@ enum StoreFixture {
         at offset: TimeInterval = 0
     ) -> AccountBalance {
         AccountBalance(provider: provider, amountUSD: amount, lastPolledAt: date(offset))
+    }
+
+    static func unavailableBalance(
+        _ provider: String = "deepseek",
+        reason: BalanceUnavailableReason.Category = .keyUnavailable,
+        at offset: TimeInterval = 0
+    ) -> AccountBalance {
+        AccountBalance(
+            provider: provider,
+            amountUSD: nil,
+            lastPolledAt: date(offset),
+            unavailableReason: BalanceUnavailableReason(reason)
+        )
     }
 }
 

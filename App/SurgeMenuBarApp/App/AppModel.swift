@@ -53,7 +53,14 @@ final class AppModel {
         self.keys = keys
         let tailer = TranscriptTailer(clock: clock)
         let proxy = ProxyServer(clock: clock)
-        let wallets = WalletPoller(keys: keys)
+        // A subscription has no balance endpoint to poll. Its row comes from its window instead.
+        let walletAccounts = WalletAccount.standard.filter {
+            !settings.quotaAccountIDs.contains($0.provider.rawValue)
+        }
+        let wallets = WalletPoller(
+            configuration: WalletConfiguration(accounts: walletAccounts),
+            keys: keys
+        )
         let catalogStore = ModelCatalogStore(directory: SnapshotLocation.local().directory)
         let tailerGate = PausablePipeline(upstream: tailer.events())
         let proxyGate = PausablePipeline(upstream: proxy.events())
@@ -66,6 +73,7 @@ final class AppModel {
             pricing: pricing,
             catalog: catalogStore.load(),
             balanceThresholds: settings.balanceThresholds,
+            billing: settings.billingConfiguration(),
             clock: clock
         )
 
@@ -140,6 +148,9 @@ final class AppModel {
         settings.onShortcutChanged = { [weak self] in
             self?.installShortcut()
         }
+        settings.onBillingChanged = { [weak self] in
+            self?.applyBilling()
+        }
         installShortcut()
 
         observation = Task { [weak self] in
@@ -157,6 +168,15 @@ final class AppModel {
         startTicker()
         startModelCatalog()
         Task { await notifications.requestAuthorization() }
+    }
+
+    /// Hands the store a changed account, binding or window so sessions already on screen resolve
+    /// against it at once instead of waiting for a relaunch.
+    private func applyBilling() {
+        let configuration = settings.billingConfiguration()
+        Task { [store] in
+            await store.updateBilling(configuration)
+        }
     }
 
     /// Fetches the providers' own model lists, caches them and hands them to the store. A failed

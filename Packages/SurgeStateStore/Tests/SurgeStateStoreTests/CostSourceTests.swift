@@ -35,7 +35,7 @@ struct CostSourceTests {
         )
 
         let agent = try #require(agents(in: await pipelines.store.tree).first)
-        #expect(agent.costSource == .actual)
+        #expect(agent.costSource == .providerReported)
         #expect(abs(agent.estimatedCostUSD - 0.0042) < 0.000_001)
         // The model list does not know this model, so the context meter reports no data rather
         // than drawing a small window.
@@ -80,8 +80,8 @@ struct CostSourceTests {
 
         #expect(abs(first.amount - 0.15) < 0.000_001)
         #expect(abs(second.amount - 0.05) < 0.000_001)
-        #expect(first.source == .derived)
-        #expect(second.source == .derived)
+        #expect(first.source == .balanceDerived)
+        #expect(second.source == .balanceDerived)
         // The derived figures replace the local estimates for that window instead of adding to them.
         #expect(abs(TreeMath.total(in: tree) - 0.20) < 0.000_001)
     }

@@ -23,10 +23,18 @@ public actor SurgeStateStore {
     /// The live model numbers the tree is priced and measured against.
     private(set) var priceBook: PriceBook
     let balanceThresholds: BalanceThresholds
-    private let clock: @Sendable () -> Date
+    let clock: @Sendable () -> Date
+    /// Accounts, explicit bindings and quota windows, as Settings last wrote them.
+    var billing: BillingConfiguration
 
     var workspaceRecords: [String: WorkspaceRecord] = [:]
     var balanceRecords: [String: AccountBalance] = [:]
+    /// The last amount each provider reported, kept apart from the row so a failed poll can still
+    /// say why it has no figure without erasing the baseline a later movement is measured from.
+    var lastKnownBalancesUSD: [String: Double] = [:]
+    /// Running burn for each subscription account, rebuilt against the clock on every publish.
+    var quotaStates: [String: QuotaWindowState] = [:]
+    var quotaPollDates: [String: Date] = [:]
     var observers: [UUID: AsyncStream<StoreTree>.Continuation] = [:]
     var pipelineTasks: [Task<Void, Never>] = []
 
@@ -37,6 +45,7 @@ public actor SurgeStateStore {
     ///   - pricing: Supplies the last-known context window, stall threshold and rates per model.
     ///   - catalog: The provider's own model list, which wins over `pricing` wherever it knows more.
     ///   - balanceThresholds: The Low and Empty thresholds, so Settings can override them.
+    ///   - billing: The accounts, bindings and quota windows a session's spend is resolved against.
     ///   - clock: Injected so stall detection and Done expiry are deterministic in tests.
     public init(
         tailer: any SessionTailing,
@@ -45,6 +54,7 @@ public actor SurgeStateStore {
         pricing: PricingTable = SurgeStateStore.defaultPricing,
         catalog: ModelCatalog = .empty,
         balanceThresholds: BalanceThresholds = BalanceThresholds(),
+        billing: BillingConfiguration = .standard,
         clock: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.tailer = tailer
@@ -53,8 +63,18 @@ public actor SurgeStateStore {
         self.pricing = pricing
         priceBook = PriceBook(catalog: catalog, fallback: pricing)
         self.balanceThresholds = balanceThresholds
+        self.billing = billing
         self.clock = clock
         self.tree = StoreTree.empty(at: clock(), balanceThresholds: balanceThresholds)
+    }
+
+    /// Replaces the accounts and bindings after the user changes Settings, then re-resolves every
+    /// session tree so a new binding applies at once.
+    public func updateBilling(_ configuration: BillingConfiguration) {
+        guard configuration != billing else { return }
+        billing = configuration
+        rebuildAttributions()
+        publish(now: clock())
     }
 
     /// Replaces the model numbers after a fresh fetch. Context windows and costs recompute on the

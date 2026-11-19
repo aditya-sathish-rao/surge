@@ -64,6 +64,7 @@ struct WidgetFreshnessCaption: View {
 /// Balances are never summed; each account shows what it reports (PRD 7.2).
 struct WidgetBalancesRow: View {
     let balances: [AccountBalance]
+    let now: Date
     var limit: Int = 3
     @Environment(\.colorSchemeContrast) private var systemContrast
     @Environment(\.surgeAppearance) private var appearance
@@ -73,7 +74,7 @@ struct WidgetBalancesRow: View {
     var body: some View {
         HStack(spacing: SurgeSpacing.space2) {
             ForEach(WidgetBalances.visible(balances, limit: limit)) { balance in
-                row(BalancePresentation(balance: balance))
+                row(BalancePresentation(balance: balance, now: now))
             }
             Spacer(minLength: 0)
         }

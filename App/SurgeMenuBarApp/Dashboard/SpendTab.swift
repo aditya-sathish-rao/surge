@@ -28,7 +28,9 @@ struct SpendTab: View {
                 VStack(alignment: .leading, spacing: SurgeSpacing.space1) {
                     SurgeSectionLabel("How spend is counted")
                     Text(
-                        "Actual is the provider's own cost. Derived is a drop in the DeepSeek balance. "
+                        "Provider reported is the bill the provider itself sent. Harness reported is "
+                            + "the harness's own total at list prices. Balance derived is a drop in the "
+                            + "account's balance. Quota window is burn against a subscription window. "
                             + "Estimated is worked out locally from the model's published rates."
                     )
                     .font(SurgeTypography.meta)

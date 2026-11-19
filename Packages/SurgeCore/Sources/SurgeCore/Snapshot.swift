@@ -60,6 +60,9 @@ public struct AccountBalance: Identifiable, Codable, Sendable, Equatable {
     /// Why there is no amount, when the last poll ended without one. Nil is the design case: the
     /// provider has no balance endpoint, or answered without a figure to report.
     public let unavailableReason: BalanceUnavailableReason?
+    /// A subscription account reports a window instead of a balance. When this is set the row
+    /// shows burn and headroom, and it never reads as an unavailable balance.
+    public let quotaWindow: QuotaWindowState?
 
     public init(
         provider: String,
@@ -67,7 +70,8 @@ public struct AccountBalance: Identifiable, Codable, Sendable, Equatable {
         lastPolledAt: Date,
         kind: BalanceKind = .wallet,
         usageUSD: Double? = nil,
-        unavailableReason: BalanceUnavailableReason? = nil
+        unavailableReason: BalanceUnavailableReason? = nil,
+        quotaWindow: QuotaWindowState? = nil
     ) {
         self.provider = provider
         self.amountUSD = amountUSD
@@ -75,11 +79,12 @@ public struct AccountBalance: Identifiable, Codable, Sendable, Equatable {
         self.kind = kind
         self.usageUSD = usageUSD
         self.unavailableReason = unavailableReason
+        self.quotaWindow = quotaWindow
     }
 
     public var id: String { provider }
 
-    public var isAvailable: Bool { amountUSD != nil }
+    public var isAvailable: Bool { amountUSD != nil || quotaWindow != nil }
 
     public var providerKind: Provider { Provider(providerID: provider) ?? .other }
 
@@ -94,6 +99,7 @@ public struct AccountBalance: Identifiable, Codable, Sendable, Equatable {
         case kind
         case usageUSD
         case unavailableReason
+        case quotaWindow
     }
 
     /// A snapshot written before the balance kind existed still reads as a wallet balance.
@@ -105,6 +111,7 @@ public struct AccountBalance: Identifiable, Codable, Sendable, Equatable {
         kind = try container.decodeIfPresent(BalanceKind.self, forKey: .kind) ?? .wallet
         usageUSD = try container.decodeIfPresent(Double.self, forKey: .usageUSD)
         unavailableReason = try container.decodeIfPresent(BalanceUnavailableReason.self, forKey: .unavailableReason)
+        quotaWindow = try container.decodeIfPresent(QuotaWindowState.self, forKey: .quotaWindow)
     }
 }
 
