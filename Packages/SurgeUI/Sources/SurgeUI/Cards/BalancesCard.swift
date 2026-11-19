@@ -6,6 +6,8 @@ public struct BalancePresentation: Sendable, Equatable {
     public let provider: Provider
     public let providerName: String
     public let amountText: String
+    /// Provider usage shown beside the amount, when the provider reports one.
+    public let usageText: String?
     public let level: BalanceLevel?
     public let isUnavailable: Bool
     public let accessibilityLabel: String
@@ -14,21 +16,44 @@ public struct BalancePresentation: Sendable, Equatable {
         provider = balance.providerKind
         providerName = balance.providerKind.name
         isUnavailable = !balance.isAvailable
+        usageText = balance.usageUSD.map { "used \(SurgeFormatting.cost($0))" }
+
         guard let amount = balance.amountUSD else {
-            amountText = "Balance unavailable"
             level = nil
-            accessibilityLabel = "\(providerName), balance unavailable"
+            switch balance.kind {
+            case .wallet:
+                amountText = "Balance unavailable"
+                accessibilityLabel = "\(providerName), balance unavailable"
+            case .keyLimit:
+                // The key has no cap, which is not the same as an empty account.
+                amountText = "No key limit"
+                accessibilityLabel = Self.keyLimitAccessibility(providerName, usage: balance.usageUSD)
+            }
             return
         }
-        amountText = SurgeFormatting.cost(amount)
+
         let level = SurgeThresholds.balanceLevel(forUSD: amount)
         self.level = level
+        let kindWord = balance.kind == .keyLimit ? "key cap" : "balance"
+        amountText =
+            balance.kind == .keyLimit
+            ? "\(SurgeFormatting.cost(amount)) key cap"
+            : SurgeFormatting.cost(amount)
+        let usageWord = balance.usageUSD.map { ", used \(SurgeFormatting.cost($0))" } ?? ""
         accessibilityLabel =
             switch level {
-            case .normal: "\(providerName), \(amountText)"
-            case .low: "\(providerName), \(amountText), low"
-            case .empty: "\(providerName), \(amountText), empty"
+            case .normal:
+                "\(providerName), \(kindWord) \(SurgeFormatting.cost(amount))\(usageWord)"
+            case .low:
+                "\(providerName), \(kindWord) \(SurgeFormatting.cost(amount)), low\(usageWord)"
+            case .empty:
+                "\(providerName), \(kindWord) \(SurgeFormatting.cost(amount)), empty\(usageWord)"
             }
+    }
+
+    private static func keyLimitAccessibility(_ providerName: String, usage: Double?) -> String {
+        guard let usage else { return "\(providerName), no key limit set" }
+        return "\(providerName), no key limit set, used \(SurgeFormatting.cost(usage))"
     }
 
     /// The word that appears beside a low or empty account, and only then.
@@ -99,6 +124,12 @@ public struct BalancesCard: View {
                     .foregroundStyle(presentation.qualifierColor ?? SurgeInk.secondary(contrastLevel))
             }
             Spacer(minLength: SurgeSpacing.space2)
+            if let usageText = presentation.usageText {
+                Text(usageText)
+                    .font(SurgeUIFont.balanceCaption)
+                    .foregroundStyle(SurgeInk.tertiary(contrastLevel))
+                    .monospacedDigit()
+            }
             Text(presentation.amountText)
                 .font(SurgeUIFont.balanceAmount)
                 .foregroundStyle(

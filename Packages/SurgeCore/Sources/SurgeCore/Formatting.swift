@@ -72,9 +72,14 @@ public enum SurgeFormatting {
         }
     }
 
-    public static func menuBarReadout(orchestrators: Int, workers: Int, spendUSD: Double) -> String {
+    public static func menuBarReadout(orchestrators: Int, workers: Int, spend: SpendFigure) -> String {
         let orchestratorWord = orchestrators == 1 ? "Orch" : "Orchs"
         let workerWord = workers == 1 ? "Worker" : "Workers"
-        return "\(orchestrators) \(orchestratorWord), \(workers) \(workerWord), \(cost(spendUSD))"
+        return "\(orchestrators) \(orchestratorWord), \(workers) \(workerWord), \(spend.displayText)"
+    }
+
+    /// The number and its label as one string, or the word unavailable when there is no figure.
+    public static func spend(_ figure: SpendFigure?) -> String {
+        figure?.displayText ?? "Cost unavailable"
     }
 }

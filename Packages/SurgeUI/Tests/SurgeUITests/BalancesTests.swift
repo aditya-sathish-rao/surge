@@ -16,7 +16,7 @@ struct BalancesTests {
         #expect(presentation.qualifier == nil)
         #expect(presentation.level == .normal)
         #expect(presentation.isUnavailable == false)
-        #expect(presentation.accessibilityLabel == "DeepSeek, $12.40")
+        #expect(presentation.accessibilityLabel == "DeepSeek, balance $12.40")
     }
 
     @Test func lowBalanceAddsTheLowWord() {
@@ -27,7 +27,7 @@ struct BalancesTests {
         #expect(presentation.amountText == "$3.20")
         #expect(presentation.qualifier == "Low")
         #expect(presentation.level == .low)
-        #expect(presentation.accessibilityLabel == "OpenRouter, $3.20, low")
+        #expect(presentation.accessibilityLabel == "OpenRouter, balance $3.20, low")
     }
 
     @Test func emptyBalanceAddsTheEmptyWord() {
@@ -37,7 +37,7 @@ struct BalancesTests {
 
         #expect(presentation.qualifier == "Empty")
         #expect(presentation.level == .empty)
-        #expect(presentation.accessibilityLabel == "OpenRouter, $0.20, empty")
+        #expect(presentation.accessibilityLabel == "OpenRouter, balance $0.20, empty")
     }
 
     @Test func missingEndpointSaysBalanceUnavailable() {
@@ -57,6 +57,38 @@ struct BalancesTests {
 
         #expect(presentations.map(\.amountText) == ["Balance unavailable", "$12.40", "$3.20"])
         #expect(presentations.map(\.qualifier) == [nil, nil, "Low"])
+    }
+
+    @Test func aKeyCapNeverPretendsToBeAWalletBalance() {
+        let presentation = BalancePresentation(
+            balance: AccountBalance(
+                provider: "openrouter",
+                amountUSD: 3.20,
+                lastPolledAt: UITestFixtures.now,
+                kind: .keyLimit
+            )
+        )
+
+        #expect(presentation.amountText == "$3.20 key cap")
+        #expect(presentation.qualifier == "Low")
+        #expect(presentation.accessibilityLabel == "OpenRouter, key cap $3.20, low")
+    }
+
+    @Test func aKeyWithoutALimitShowsUsageButNoAmount() {
+        let presentation = BalancePresentation(
+            balance: AccountBalance(
+                provider: "openrouter",
+                amountUSD: nil,
+                lastPolledAt: UITestFixtures.now,
+                kind: .keyLimit,
+                usageUSD: 4.25
+            )
+        )
+
+        #expect(presentation.amountText == "No key limit")
+        #expect(presentation.usageText == "used $4.25")
+        #expect(presentation.isUnavailable)
+        #expect(presentation.accessibilityLabel == "OpenRouter, no key limit set, used $4.25")
     }
 
     @Test func freshnessCaptionReadsLikeTheDesign() {

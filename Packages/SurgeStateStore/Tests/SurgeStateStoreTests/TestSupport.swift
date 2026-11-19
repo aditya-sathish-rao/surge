@@ -107,6 +107,7 @@ enum StoreFixture {
     static func pipelines(
         clock: TestClock,
         pricing: PricingTable = StoreFixture.pricing,
+        catalog: ModelCatalog = .empty,
         thresholds: BalanceThresholds = BalanceThresholds()
     ) -> TestPipelines {
         let tailer = TestPipeline<TailerEvent>()
@@ -117,6 +118,7 @@ enum StoreFixture {
             proxy: FakeProxy(pipeline: proxy),
             wallets: FakeWallets(pipeline: wallets),
             pricing: pricing,
+            catalog: catalog,
             balanceThresholds: thresholds,
             clock: { clock.now }
         )

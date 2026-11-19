@@ -14,14 +14,14 @@
     "stallThresholdSeconds": 120
   },
   "deepseek-chat": {
-    "contextWindow": 128000,
+    "contextWindow": 1048576,
     "inputPerMillion": 0.27,
     "outputPerMillion": 1.10,
     "cacheReadPerMillion": 0.07,
     "stallThresholdSeconds": 120
   },
   "deepseek-reasoner": {
-    "contextWindow": 128000,
+    "contextWindow": 1048576,
     "inputPerMillion": 0.55,
     "outputPerMillion": 2.19,
     "cacheReadPerMillion": 0.14,

@@ -8,22 +8,26 @@ public struct SpendShare: Identifiable, Sendable, Equatable {
     public let amountUSD: Double
     public let fraction: Double
     public let percent: Int
+    /// How the amount was obtained, so the label travels with the number.
+    public let source: CostSource
 
     public var id: String { provider.rawValue }
 
     public var percentText: String { "\(percent)%" }
 
-    public var amountText: String { SurgeFormatting.cost(amountUSD) }
+    public var figure: SpendFigure { SpendFigure(amountUSD: amountUSD, source: source) }
+
+    public var amountText: String { figure.displayText }
 
     public var accessibilityLabel: String {
-        "\(provider.name), \(amountText), \(percent) percent"
+        "\(provider.name), \(figure.accessibilityText), \(percent) percent"
     }
 }
 
 public enum SpendShares {
     /// Providers with no spend are left out. Percentages use largest-remainder rounding so they
     /// always total 100.
-    public static func make(for day: DailySpendPoint) -> [SpendShare] {
+    public static func make(for day: DailySpendPoint, source: CostSource = .estimated) -> [SpendShare] {
         let amounts = Provider.allCases.map { ($0, max(day.spend(for: $0), 0)) }.filter { $0.1 > 0 }
         let total = amounts.reduce(0) { $0 + $1.1 }
         guard total > 0 else { return [] }
@@ -45,7 +49,8 @@ public enum SpendShares {
                 provider: provider,
                 amountUSD: amount,
                 fraction: amount / total,
-                percent: percents[index]
+                percent: percents[index],
+                source: source
             )
         }
     }

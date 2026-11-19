@@ -191,7 +191,8 @@ struct ConnectionPipeline: Sendable {
                     outputTokens: report.outputTokens,
                     cacheHitTokens: report.cacheHitTokens,
                     currentContextTokens: report.inputTokens,
-                    occurredAt: clock()
+                    occurredAt: clock(),
+                    reportedCostUSD: report.reportedCostUSD
                 )
             )
         }

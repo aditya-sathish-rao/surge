@@ -73,7 +73,7 @@ struct AgentsTab: View {
                     .foregroundStyle(SurgeColors.caution)
                 }
                 Spacer(minLength: SurgeSpacing.space2)
-                Text(SurgeFormatting.cost(workspace.totalTreeCostUSD))
+                Text(SurgeFormatting.spend(workspace.spendFigure))
                     .font(SurgeTypography.meta)
                     .foregroundStyle(SurgeInk.secondary(systemContrast))
                     .monospacedDigit()
@@ -91,7 +91,7 @@ struct AgentsTab: View {
     private func workspaceAccessibilityLabel(workspace: WorkspaceSession, attention: Int) -> String {
         let agents = 1 + workspace.workers.count
         let agentText = agents == 1 ? "1 agent" : "\(agents) agents"
-        let spend = SurgeFormatting.cost(workspace.totalTreeCostUSD)
+        let spend = SurgeFormatting.spend(workspace.spendFigure)
         if attention > 0 {
             return "\(workspace.name), \(workspace.projectPath). \(agentText), \(attention) need you. \(spend)."
         }

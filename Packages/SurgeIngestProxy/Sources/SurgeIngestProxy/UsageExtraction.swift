@@ -5,6 +5,23 @@ struct UsageReport: Sendable, Equatable {
     let inputTokens: Int
     let outputTokens: Int
     let cacheHitTokens: Int
+    /// The provider's own exact cost for the call, when it reports one (OpenRouter with
+    /// `usage: { include: true }`). Nil means no reported cost, not a cost of zero.
+    let reportedCostUSD: Double?
+
+    init(
+        modelName: String?,
+        inputTokens: Int,
+        outputTokens: Int,
+        cacheHitTokens: Int,
+        reportedCostUSD: Double? = nil
+    ) {
+        self.modelName = modelName
+        self.inputTokens = inputTokens
+        self.outputTokens = outputTokens
+        self.cacheHitTokens = cacheHitTokens
+        self.reportedCostUSD = reportedCostUSD
+    }
 }
 
 enum JSONUsageParser {
@@ -33,8 +50,20 @@ enum JSONUsageParser {
             modelName: model,
             inputTokens: input,
             outputTokens: output,
-            cacheHitTokens: cache
+            cacheHitTokens: cache,
+            reportedCostUSD: Self.cost(usage["cost"])
         )
+    }
+
+    private static func cost(_ value: Any?) -> Double? {
+        if let number = value as? NSNumber {
+            let amount = number.doubleValue
+            return amount.isFinite && amount >= 0 ? amount : nil
+        }
+        if let string = value as? String, let amount = Double(string) {
+            return amount.isFinite && amount >= 0 ? amount : nil
+        }
+        return nil
     }
 
     private static func jsonObject(from data: Data) -> [String: Any]? {

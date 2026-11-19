@@ -49,8 +49,10 @@ public struct AgentRowPresentation: Sendable, Equatable {
             lastActivityAt: agent.lastTokenAt
         )
         let providerName = agent.providerKind.name
+        let costClause = agent.costSource == nil ? " Cost unavailable for \(modelName)." : ""
         accessibilityLabel =
-            "\(modelName), \(role), \(workspaceName), \(providerName). \(statusClause) \(fuse.contextClause)."
+            "\(modelName), \(role), \(workspaceName), \(providerName). "
+            + "\(statusClause) \(fuse.contextClause).\(costClause)"
     }
 
     public static func trailingText(

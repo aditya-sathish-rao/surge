@@ -98,6 +98,8 @@ public struct WorkerDescriptor: Identifiable, Codable, Sendable, Equatable {
 }
 
 /// Token counts on usage events are per-request increments. `currentContextTokens` is the prompt size of that request.
+/// `reportedCostUSD` is the provider's own exact cost for the call when it reports one; it is
+/// authoritative and needs no local price table.
 public struct ProxyUsage: Codable, Sendable, Equatable {
     public let workerID: String
     public let provider: String
@@ -107,6 +109,7 @@ public struct ProxyUsage: Codable, Sendable, Equatable {
     public let cacheHitTokens: Int
     public let currentContextTokens: Int
     public let occurredAt: Date
+    public let reportedCostUSD: Double?
 
     public init(
         workerID: String,
@@ -116,7 +119,8 @@ public struct ProxyUsage: Codable, Sendable, Equatable {
         outputTokens: Int,
         cacheHitTokens: Int,
         currentContextTokens: Int,
-        occurredAt: Date
+        occurredAt: Date,
+        reportedCostUSD: Double? = nil
     ) {
         self.workerID = workerID
         self.provider = provider
@@ -126,6 +130,7 @@ public struct ProxyUsage: Codable, Sendable, Equatable {
         self.cacheHitTokens = cacheHitTokens
         self.currentContextTokens = currentContextTokens
         self.occurredAt = occurredAt
+        self.reportedCostUSD = reportedCostUSD
     }
 }
 

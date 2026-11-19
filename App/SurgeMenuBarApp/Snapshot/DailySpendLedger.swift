@@ -15,16 +15,25 @@ struct DailySpendLedger: Equatable {
     }
 
     private var totals: [Date: [String: Double]]
+    /// The weakest source behind each day's total, so the number can always be labelled.
+    private var sources: [Date: CostSource]
     private var agentCosts: [String: AgentCost]
     private let calendar: Calendar
 
     init(seed: SurgeSnapshot? = nil, calendar: Calendar = .current) {
         self.calendar = calendar
         var totals: [Date: [String: Double]] = [:]
+        var sources: [Date: CostSource] = [:]
         var agentCosts: [String: AgentCost] = [:]
         if let seed {
             for point in seed.dailySpend {
-                totals[calendar.startOfDay(for: point.date)] = point.spendByProvider
+                let day = calendar.startOfDay(for: point.date)
+                totals[day] = point.spendByProvider
+                // History written before the sources existed is labelled as an estimate, which
+                // never overstates how real the number is.
+                if point.spendByProvider.isEmpty == false {
+                    sources[day] = .estimated
+                }
             }
             for workspace in seed.workspaces {
                 for agent in [workspace.orchestrator] + workspace.workers {
@@ -33,6 +42,7 @@ struct DailySpendLedger: Equatable {
             }
         }
         self.totals = totals
+        self.sources = sources
         self.agentCosts = agentCosts
     }
 
@@ -46,6 +56,9 @@ struct DailySpendLedger: Equatable {
                     var dayTotals = totals[day] ?? [:]
                     dayTotals[agent.provider, default: 0] += increase
                     totals[day] = dayTotals
+                    if let source = agent.costSource {
+                        sources[day] = CostSource.weakest([sources[day], source].compactMap { $0 })
+                    }
                 }
                 agentCosts[agent.id] = AgentCost(costUSD: agent.estimatedCostUSD, lastSeenAt: now)
             }
@@ -55,6 +68,15 @@ struct DailySpendLedger: Equatable {
 
     func todayTotal(at now: Date) -> Double {
         (totals[calendar.startOfDay(for: now)] ?? [:]).values.reduce(0, +)
+    }
+
+    /// How today's total was obtained. Unknown history reads as an estimate, never as reported.
+    func todaySource(at now: Date) -> CostSource {
+        sources[calendar.startOfDay(for: now)] ?? .estimated
+    }
+
+    func todayFigure(at now: Date) -> SpendFigure {
+        SpendFigure(amountUSD: todayTotal(at: now), source: todaySource(at: now))
     }
 
     func todayPoint(at now: Date) -> DailySpendPoint {
@@ -77,6 +99,7 @@ struct DailySpendLedger: Equatable {
         guard let cutoff else { return }
         for day in totals.keys where day < cutoff {
             totals[day] = nil
+            sources[day] = nil
         }
         for (id, cost) in agentCosts where cost.lastSeenAt < cutoff {
             agentCosts[id] = nil
