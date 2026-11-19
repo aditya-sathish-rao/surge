@@ -92,7 +92,9 @@ public struct AgentRowPresentation: Sendable, Equatable {
         }
     }
 
-    /// Turns a model id into the words the design system shows: "claude-sonnet" reads as "Claude Sonnet".
+    /// Turns a model id into the words the design system shows: "claude-sonnet" reads as "Claude
+    /// Sonnet", and the number segments of a version stay together as "claude-sonnet-5-5" reading
+    /// "Claude Sonnet 5.5".
     public static func displayName(forModel modelName: String) -> String {
         let words =
             modelName
@@ -102,7 +104,21 @@ public struct AgentRowPresentation: Sendable, Equatable {
                 if let brand = brands[lowercased] { return brand }
                 return word.prefix(1).uppercased() + word.dropFirst()
             }
-        return words.isEmpty ? modelName : words.joined(separator: " ")
+        return words.isEmpty ? modelName : joinedVersions(words)
+    }
+
+    /// Consecutive number segments are one version, so `5-5` reads as `5.5` rather than `5 5`.
+    private static func joinedVersions(_ words: [String]) -> String {
+        var merged: [String] = []
+        for word in words {
+            let isNumber = word.allSatisfy(\.isNumber)
+            if isNumber, let previous = merged.last, previous.allSatisfy(\.isNumber) {
+                merged[merged.count - 1] = previous + "." + word
+            } else {
+                merged.append(word)
+            }
+        }
+        return merged.joined(separator: " ")
     }
 
     private static let brands: [String: String] = [

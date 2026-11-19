@@ -135,6 +135,7 @@ struct AgentRowPresentationTests {
         #expect(AgentRowPresentation.displayName(forModel: "gpt-4o-mini") == "GPT 4o Mini")
         #expect(AgentRowPresentation.displayName(forModel: "some_model") == "Some Model")
         #expect(AgentRowPresentation.displayName(forModel: "v3") == "V3")
+        #expect(AgentRowPresentation.displayName(forModel: "claude-sonnet-5-5") == "Claude Sonnet 5.5")
         #expect(AgentRowPresentation.displayName(forModel: "") == "")
     }
 
