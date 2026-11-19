@@ -61,16 +61,9 @@ struct TranscriptRecord: Decodable {
                 outputTokens: usage.outputTokens ?? 0,
                 cacheReadTokens: usage.cacheReadInputTokens ?? 0,
                 cacheCreationTokens: usage.cacheCreationInputTokens ?? 0,
-                occurredAt: timestamp.flatMap(TranscriptRecord.parseTimestamp)
+                occurredAt: timestamp.flatMap(TranscriptTimestamp.parse)
             )
         )
-    }
-
-    static func parseTimestamp(_ value: String) -> Date? {
-        if let date = try? Date(value, strategy: .iso8601) {
-            return date
-        }
-        return try? Date(value, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true))
     }
 
     private var workingDirectory: String? {
@@ -100,23 +93,9 @@ struct TranscriptUsage: Decodable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        inputTokens = Self.count(in: container, forKey: .inputTokens)
-        outputTokens = Self.count(in: container, forKey: .outputTokens)
-        cacheReadInputTokens = Self.count(in: container, forKey: .cacheReadInputTokens)
-        cacheCreationInputTokens = Self.count(in: container, forKey: .cacheCreationInputTokens)
-    }
-
-    /// A token count that is not an integer is ignored instead of failing the whole line.
-    private static func count(
-        in container: KeyedDecodingContainer<CodingKeys>,
-        forKey key: CodingKeys
-    ) -> Int? {
-        if let value = try? container.decodeIfPresent(Int.self, forKey: key) {
-            return value
-        }
-        if let value = try? container.decodeIfPresent(Double.self, forKey: key) {
-            return Int(value)
-        }
-        return nil
+        inputTokens = TokenCount.int(in: container, forKey: .inputTokens)
+        outputTokens = TokenCount.int(in: container, forKey: .outputTokens)
+        cacheReadInputTokens = TokenCount.int(in: container, forKey: .cacheReadInputTokens)
+        cacheCreationInputTokens = TokenCount.int(in: container, forKey: .cacheCreationInputTokens)
     }
 }

@@ -1,35 +1,40 @@
 import Foundation
 import SurgeCore
 
-/// Tails Claude Code transcripts under `~/.claude/projects` and publishes immutable events.
+/// What the tailer keeps for one transcript file.
+private struct FileState {
+    let sourceKind: TranscriptSourceKind
+    let provider: String
+    let sessionID: String
+    let parentSessionID: String?
+    var projectPath: String?
+    var reader: any TranscriptFileReader
+    var offset: UInt64
+    var pending: Data
+    var fileNumber: UInt64?
+    var appeared: Bool
+    var ended: Bool
+    var lastActivity: Date
+    var cost: SessionCostAccumulator
+}
+
+/// Tails the configured transcript sources and publishes immutable events.
 ///
-/// One JSONL file is one session. Each file keeps its own byte offset and its unterminated
-/// trailing line, so a write only decodes the bytes that arrived since the last read and a
-/// line split across two writes is joined before it is parsed. A sub-agent is a transcript
-/// inside a `subagents/` folder; its parent session is the folder that contains `subagents/`.
+/// Each source adapter says where its files live, what a line means and what it can supply. One
+/// JSONL file is one session. Each file keeps its own byte offset and its unterminated trailing
+/// line, so a write only decodes the bytes that arrived since the last read and a line split
+/// across two writes is joined before it is parsed.
 ///
-/// Transcripts are read for metadata and token counts only. `TranscriptRecord` declares no
-/// content keys, so prompt and response text never enters this package's memory.
+/// Transcripts are read for metadata and numbers only. The record types declare no content keys,
+/// so prompt, response and tool-output text never enters this package's memory.
 public actor TranscriptTailer: SessionTailing {
-    public static let defaultRoot = FileManager.default.homeDirectoryForCurrentUser
-        .appending(path: ".claude/projects", directoryHint: .isDirectory)
+    public static let defaultRoot = TranscriptSource.defaultClaudeCodeRoot
 
     public static let bundledPricing: PricingTable =
         (try? PricingTable.bundled()) ?? PricingTable(models: [:])
 
-    private struct FileState {
-        let sessionID: String
-        let parentSessionID: String?
-        var projectPath: String?
-        var offset: UInt64
-        var pending: Data
-        var fileNumber: UInt64?
-        var appeared: Bool
-        var ended: Bool
-        var lastActivity: Date
-    }
-
-    private let scanner: TranscriptScanner
+    private let adapters: [any TranscriptSourceAdapter]
+    private let infoByKind: [TranscriptSourceKind: TranscriptSourceInfo]
     private let pricing: PricingTable
     private let clock: @Sendable () -> Date
     private let sink = TailerEventSink()
@@ -39,24 +44,58 @@ public actor TranscriptTailer: SessionTailing {
     private var sweepTask: Task<Void, Never>?
     private var isMonitoring = false
 
+    /// What each configured source is, including what it can and cannot supply.
+    public nonisolated let sources: [TranscriptSourceInfo]
+
     /// - Parameters:
-    ///   - root: The projects directory that holds the transcript folders. Injected by tests.
+    ///   - sources: The transcript sources to read. The default is every harness Surge supports;
+    ///     pass a single source, pointed at a test directory, to tail one harness in isolation.
     ///   - checkpoints: Offsets saved by a previous tailer, so an app restart resumes instead of replaying.
-    ///   - pricing: The table that supplies each model's context window.
+    ///   - pricing: The table that supplies each model's context window and a locally estimated cost.
     ///   - clock: Injected so idle sessions and ended detection are deterministic in tests.
     public init(
-        root: URL = TranscriptTailer.defaultRoot,
+        sources: [TranscriptSource] = TranscriptSource.defaults,
         checkpoints: [TailerCheckpoint] = [],
         pricing: PricingTable = TranscriptTailer.bundledPricing,
         clock: @escaping @Sendable () -> Date = { Date() }
     ) {
-        self.scanner = TranscriptScanner(root: root, now: clock)
+        self.init(
+            adapters: sources.map { TranscriptTailer.adapter(for: $0, pricing: pricing, clock: clock) },
+            checkpoints: checkpoints,
+            pricing: pricing,
+            clock: clock
+        )
+    }
+
+    /// Takes adapters directly, so a source that is not shipped yet can be tailed in a test.
+    init(
+        adapters: [any TranscriptSourceAdapter],
+        checkpoints: [TailerCheckpoint] = [],
+        pricing: PricingTable = TranscriptTailer.bundledPricing,
+        clock: @escaping @Sendable () -> Date = { Date() }
+    ) {
+        self.adapters = adapters
+        self.sources = adapters.map(\.info)
+        self.infoByKind = Dictionary(adapters.map { ($0.info.kind, $0.info) }) { first, _ in first }
         self.pricing = pricing
         self.clock = clock
         self.initialOffsets = Dictionary(
             checkpoints.map { ($0.path, $0.offset) },
             uniquingKeysWith: { _, latest in latest }
         )
+    }
+
+    private static func adapter(
+        for source: TranscriptSource,
+        pricing: PricingTable,
+        clock: @escaping @Sendable () -> Date
+    ) -> any TranscriptSourceAdapter {
+        switch source.kind {
+        case .claudeCode:
+            ClaudeCodeAdapter(root: source.root, pricing: pricing, now: clock)
+        case .piAgent:
+            PiSessionAdapter(root: source.root, pricing: pricing, now: clock)
+        }
     }
 
     /// Returns the event stream and starts watching. The stream is created once and shared.
@@ -90,51 +129,18 @@ public actor TranscriptTailer: SessionTailing {
         sink.finish()
     }
 
-    /// Offsets to hand to a new tailer so it resumes from the same bytes.
-    public func checkpoints() -> [TailerCheckpoint] {
-        files.keys.sorted().compactMap { path in
-            guard let state = files[path] else { return nil }
-            let pendingBytes = UInt64(state.pending.count)
-            // Resume at the start of an unterminated line so the line is read whole again.
-            let offset = state.offset >= pendingBytes ? state.offset - pendingBytes : 0
-            return TailerCheckpoint(path: path, offset: offset)
-        }
-    }
-
-    /// The session that spawned this sub-agent, or nil for a top-level session.
-    public func parentSessionID(forSession sessionID: String) -> String? {
-        files.keys.sorted().compactMap { files[$0] }.first { $0.sessionID == sessionID }?.parentSessionID
-    }
-
-    /// Reads new bytes from every transcript and publishes what changed.
+    /// Reads new bytes from every source and publishes what changed.
     public func refresh() {
         let now = clock()
-        let discovered = scanner.discover()
+        var discovered: [SourceFile] = []
         var seen = Set<String>()
 
-        for file in discovered {
-            seen.insert(file.path)
-            var state = files[file.path] ?? makeState(for: file, now: now)
-            if let previous = state.fileNumber, let current = file.fileNumber, previous != current {
-                // The file was replaced, so the saved offset points into a different file.
-                state.offset = 0
-                state.pending = Data()
+        for adapter in adapters {
+            for file in adapter.discover(now: now) {
+                discovered.append(file)
+                seen.insert(file.path)
+                read(file, from: adapter, now: now)
             }
-            if let current = file.fileNumber {
-                state.fileNumber = current
-            }
-            if file.size < state.offset {
-                // The file was truncated; read it again from the start.
-                state.offset = 0
-                state.pending = Data()
-            }
-            if file.size > state.offset, let data = read(from: file.url, offset: state.offset) {
-                state.offset += UInt64(data.count)
-                state.lastActivity = now
-                state.pending.append(data)
-                drain(&state, now: now)
-            }
-            files[file.path] = state
         }
 
         for path in Array(files.keys) where !seen.contains(path) {
@@ -146,23 +152,59 @@ public actor TranscriptTailer: SessionTailing {
         updateWatchers(discovered, now: now)
     }
 
-    private func makeState(for file: TranscriptFile, now: Date) -> FileState {
+    private func state(forSession sessionID: String) -> FileState? {
+        files.keys.sorted().compactMap { files[$0] }.first { $0.sessionID == sessionID }
+    }
+
+    private func read(_ file: SourceFile, from adapter: any TranscriptSourceAdapter, now: Date) {
+        var state = files[file.path] ?? makeState(for: file, from: adapter, now: now)
+        if let previous = state.fileNumber, let current = file.fileNumber, previous != current {
+            // The file was replaced, so the saved offset points into a different file.
+            state.offset = 0
+            state.pending = Data()
+        }
+        if let current = file.fileNumber {
+            state.fileNumber = current
+        }
+        if file.size < state.offset {
+            // The file was truncated; read it again from the start.
+            state.offset = 0
+            state.pending = Data()
+        }
+        if file.size > state.offset, let data = read(from: file.url, offset: state.offset) {
+            state.offset += UInt64(data.count)
+            state.lastActivity = now
+            state.pending.append(data)
+            drain(&state, now: now)
+        }
+        files[file.path] = state
+    }
+
+    private func makeState(
+        for file: SourceFile,
+        from adapter: any TranscriptSourceAdapter,
+        now: Date
+    ) -> FileState {
         FileState(
+            sourceKind: adapter.info.kind,
+            provider: adapter.info.provider,
             sessionID: file.sessionID,
             parentSessionID: file.parentSessionID,
             projectPath: nil,
+            reader: adapter.makeReader(),
             offset: initialOffset(for: file, now: now),
             pending: Data(),
             fileNumber: file.fileNumber,
             appeared: false,
             ended: false,
-            lastActivity: min(file.modificationDate, now)
+            lastActivity: min(file.modificationDate, now),
+            cost: SessionCostAccumulator()
         )
     }
 
     /// A recently written transcript is read from the start so its first turn is visible at
     /// launch. An older transcript is tailed from its end instead of replaying its history.
-    private func initialOffset(for file: TranscriptFile, now: Date) -> UInt64 {
+    private func initialOffset(for file: SourceFile, now: Date) -> UInt64 {
         if let saved = initialOffsets[file.path] {
             return saved
         }
@@ -192,19 +234,14 @@ public actor TranscriptTailer: SessionTailing {
     }
 
     private func process(_ line: Data, state: inout FileState, now: Date) {
-        guard
-            !line.isEmpty,
-            let record = try? JSONDecoder().decode(TranscriptRecord.self, from: line)
-        else { return }
-
-        let entry = record.parse()
+        guard !line.isEmpty else { return }
+        let entry = state.reader.ingest(line: line, at: now)
         if let projectPath = entry.projectPath {
             state.projectPath = projectPath
         }
         guard let turn = entry.turn else { return }
 
         let occurredAt = turn.occurredAt ?? now
-        let contextTokens = turn.inputTokens + turn.cacheReadTokens + turn.cacheCreationTokens
         // A session that went quiet and then wrote again is a new appearance for the state store.
         if !state.appeared || state.ended {
             state.appeared = true
@@ -214,7 +251,7 @@ public actor TranscriptTailer: SessionTailing {
                     SessionDescriptor(
                         id: state.sessionID,
                         projectPath: state.projectPath ?? "",
-                        provider: TranscriptRecord.provider,
+                        provider: state.provider,
                         modelName: turn.model,
                         maxContextWindow: pricing.contextWindow(forModel: turn.model) ?? 0,
                         occurredAt: occurredAt
@@ -222,6 +259,7 @@ public actor TranscriptTailer: SessionTailing {
                 )
             )
         }
+        state.cost.add(turn.cost)
         sink.publish(
             .turnAppended(
                 TurnAppended(
@@ -229,8 +267,8 @@ public actor TranscriptTailer: SessionTailing {
                     modelName: turn.model,
                     inputTokens: turn.inputTokens,
                     outputTokens: turn.outputTokens,
-                    cacheHitTokens: turn.cacheReadTokens,
-                    currentContextTokens: contextTokens,
+                    cacheHitTokens: turn.cacheHitTokens,
+                    currentContextTokens: turn.currentContextTokens,
                     occurredAt: occurredAt
                 )
             )
@@ -251,7 +289,7 @@ public actor TranscriptTailer: SessionTailing {
         }
     }
 
-    private func updateWatchers(_ discovered: [TranscriptFile], now: Date) {
+    private func updateWatchers(_ discovered: [SourceFile], now: Date) {
         let idleWindow = TailerDefaults.sessionEndedIdleSeconds
         for file in discovered {
             let isRecent = now.timeIntervalSince(file.modificationDate) < idleWindow
@@ -280,5 +318,38 @@ public actor TranscriptTailer: SessionTailing {
 
     private func cancelWatcher(for path: String) {
         watchers.removeValue(forKey: path)?.cancel()
+    }
+}
+
+extension TranscriptTailer {
+    /// Offsets to hand to a new tailer so it resumes from the same bytes.
+    public func checkpoints() -> [TailerCheckpoint] {
+        files.keys.sorted().compactMap { path in
+            guard let state = files[path] else { return nil }
+            let pendingBytes = UInt64(state.pending.count)
+            // Resume at the start of an unterminated line so the line is read whole again.
+            let offset = state.offset >= pendingBytes ? state.offset - pendingBytes : 0
+            return TailerCheckpoint(path: path, offset: offset)
+        }
+    }
+
+    /// The session that spawned this sub-agent, or nil for a top-level session.
+    ///
+    /// Nil is also the answer when the session's source cannot supply a parent link, which
+    /// `capabilities(forSession:)` reports. Nothing is inferred from a process or a workspace.
+    public func parentSessionID(forSession sessionID: String) -> String? {
+        state(forSession: sessionID)?.parentSessionID
+    }
+
+    /// What the session's source can supply, or nil when the session is not being tailed.
+    public func capabilities(forSession sessionID: String) -> SourceCapabilities? {
+        guard let state = state(forSession: sessionID) else { return nil }
+        return infoByKind[state.sourceKind]?.capabilities
+    }
+
+    /// The cost recorded for a session, kept split by provenance. Nil when the session is not tailed.
+    public func cost(forSession sessionID: String) -> SessionCost? {
+        guard let state = state(forSession: sessionID) else { return nil }
+        return state.cost.summary(sessionID: state.sessionID, provider: state.provider)
     }
 }
