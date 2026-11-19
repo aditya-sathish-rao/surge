@@ -110,12 +110,16 @@ struct DashboardView: View {
             }
             .foregroundStyle(SurgeColors.caution)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(model.storeModel.attentionCount) agents need you")
+            .accessibilityLabel(attentionLabel(model.storeModel.attentionCount))
         } else {
             Text("All agents working")
                 .font(SurgeTypography.meta)
                 .foregroundStyle(SurgeInk.secondary(systemContrast))
         }
+    }
+
+    private func attentionLabel(_ count: Int) -> String {
+        count == 1 ? "1 agent needs you" : "\(count) agents need you"
     }
 
     private var moreMenu: some View {

@@ -7,7 +7,6 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable private var settings: SurgeSettings
     @State private var capture = ShortcutCapture()
-    @Environment(\.colorSchemeContrast) private var systemContrast
 
     init(model: AppModel) {
         _settings = Bindable(wrappedValue: model.settings)
@@ -114,10 +113,12 @@ struct SettingsView: View {
             .multilineTextAlignment(.trailing)
     }
 
+    /// Settings is a system form, so its captions take the system secondary colour. The dark-card
+    /// ink tokens are invisible on a light form.
     private func caption(_ text: String) -> some View {
         Text(text)
             .font(SurgeTypography.meta)
-            .foregroundStyle(SurgeInk.tertiary(systemContrast))
+            .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
     }
 }

@@ -23,7 +23,8 @@ struct MenuBarReadout: Equatable {
         let agents = agentCount == 1 ? "1 agent" : "\(agentCount) agents"
         let spend = "\(Self.spokenUSD(spendUSD)) spent today"
         if needsYou {
-            return "Surge. \(agents), \(attentionCount) need you. \(spend)."
+            let needsYouClause = attentionCount == 1 ? "1 agent needs you" : "\(attentionCount) need you"
+            return "Surge. \(agents), \(needsYouClause). \(spend)."
         }
         return "Surge. \(agents). \(spend)."
     }
