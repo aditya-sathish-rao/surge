@@ -4,7 +4,9 @@ import SurgeCore
 /// Polls every configured account on the wallet cadence and publishes one update per poll.
 ///
 /// Accounts are polled concurrently, so a provider that fails or times out degrades only
-/// its own row to unavailable and never delays the others.
+/// its own row and never delays the others. Every poll publishes a full account record, which
+/// carries either the amount that was fetched or the reason there is none, so a caller never has
+/// to guess why a row is empty.
 public struct WalletPoller: WalletPolling {
     private let configuration: WalletConfiguration
     private let keys: any WalletKeyProviding
@@ -65,17 +67,23 @@ public struct WalletPoller: WalletPolling {
     private func read(_ account: WalletAccount) async -> Outcome {
         let polledAt = await scheduler.now()
         let provider = account.provider.rawValue
-        let unavailable = Outcome(
-            update: .unavailable(provider: provider, lastPolledAt: polledAt),
-            succeeded: true
-        )
 
-        // No endpoint or no key means there is nothing to retry: hold the normal cadence.
+        // No endpoint means there is nothing to ask for. That is a design fact, not a failure.
         guard let url = account.balanceURL, let parser = Self.parser(for: account.provider) else {
-            return unavailable
+            return Outcome(
+                update: .unavailable(provider: provider, lastPolledAt: polledAt),
+                succeeded: true
+            )
         }
-        guard let key = try? keys.apiKey(for: account.provider) else {
-            return unavailable
+
+        let key: String
+        do {
+            guard let stored = try keys.apiKey(for: account.provider) else {
+                return report(.init(.notConfigured), provider: provider, polledAt: polledAt, succeeded: true)
+            }
+            key = stored
+        } catch {
+            return report(.init(.keyUnavailable), provider: provider, polledAt: polledAt, succeeded: true)
         }
 
         var request = URLRequest(url: url)
@@ -84,24 +92,59 @@ public struct WalletPoller: WalletPolling {
         request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
+        let response: WalletHTTPResponse
         do {
-            let response = try await transport.get(request)
-            guard response.isSuccess else { return failed(provider: provider, polledAt: polledAt) }
-            let balance = try parser.balance(from: response.body)
-            return Outcome(
-                update: Self.update(provider: provider, balance: balance, polledAt: polledAt),
-                succeeded: true
-            )
+            response = try await transport.get(request)
         } catch {
-            return failed(provider: provider, polledAt: polledAt)
+            return report(.init(.unreachable), provider: provider, polledAt: polledAt, succeeded: false)
         }
+
+        guard response.isSuccess else {
+            let reason = BalanceUnavailableReason(
+                Self.category(forStatus: response.statusCode),
+                statusCode: response.statusCode
+            )
+            return report(reason, provider: provider, polledAt: polledAt, succeeded: false)
+        }
+
+        let balance: WalletBalance
+        do {
+            balance = try parser.balance(from: response.body)
+        } catch {
+            let reason = BalanceUnavailableReason(.unexpectedResponse, statusCode: response.statusCode)
+            return report(reason, provider: provider, polledAt: polledAt, succeeded: false)
+        }
+        return Outcome(
+            update: Self.update(provider: provider, balance: balance, polledAt: polledAt),
+            succeeded: true
+        )
     }
 
-    private func failed(provider: String, polledAt: Date) -> Outcome {
+    /// A poll that ended without an amount. The record carries the reason so every surface, and
+    /// the snapshot the widget reads, can say why instead of only that the balance is missing.
+    private func report(
+        _ reason: BalanceUnavailableReason,
+        provider: String,
+        polledAt: Date,
+        succeeded: Bool
+    ) -> Outcome {
         Outcome(
-            update: .unavailable(provider: provider, lastPolledAt: polledAt),
-            succeeded: false
+            update: .loaded(
+                AccountBalance(
+                    provider: provider,
+                    amountUSD: nil,
+                    lastPolledAt: polledAt,
+                    unavailableReason: reason
+                )
+            ),
+            succeeded: succeeded
         )
+    }
+
+    /// Only a refused key is worth naming on its own; every other answer Surge cannot use is an
+    /// unexpected response, which the status code then identifies in the snapshot.
+    private static func category(forStatus statusCode: Int) -> BalanceUnavailableReason.Category {
+        statusCode == 401 || statusCode == 403 ? .keyRejected : .unexpectedResponse
     }
 
     private static func update(provider: String, balance: WalletBalance, polledAt: Date) -> BalanceUpdate {

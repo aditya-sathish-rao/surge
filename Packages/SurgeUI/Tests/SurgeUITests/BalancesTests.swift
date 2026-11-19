@@ -46,10 +46,66 @@ struct BalancesTests {
         )
 
         #expect(presentation.amountText == "Balance unavailable")
+        #expect(presentation.reasonText == nil)
         #expect(presentation.qualifier == nil)
         #expect(presentation.level == nil)
         #expect(presentation.isUnavailable)
         #expect(presentation.accessibilityLabel == "Anthropic, balance unavailable")
+    }
+
+    @Test func aRejectedKeySaysWhyTheBalanceIsMissing() {
+        let presentation = BalancePresentation(
+            balance: AccountBalance(
+                provider: "deepseek",
+                amountUSD: nil,
+                lastPolledAt: UITestFixtures.now,
+                unavailableReason: BalanceUnavailableReason(.keyRejected, statusCode: 401)
+            )
+        )
+
+        #expect(presentation.amountText == "Balance unavailable")
+        #expect(presentation.reasonText == "Key rejected")
+        #expect(presentation.level == nil)
+        #expect(presentation.isUnavailable)
+        #expect(presentation.accessibilityLabel == "DeepSeek, balance unavailable. Key rejected.")
+    }
+
+    @Test func anAnsweredButUnreachableProviderSaysSoInstead() {
+        let presentation = BalancePresentation(
+            balance: AccountBalance(
+                provider: "openrouter",
+                amountUSD: nil,
+                lastPolledAt: UITestFixtures.now,
+                unavailableReason: BalanceUnavailableReason(.unreachable)
+            )
+        )
+
+        #expect(presentation.amountText == "Balance unavailable")
+        #expect(presentation.reasonText == "Could not reach provider")
+        #expect(presentation.accessibilityLabel == "OpenRouter, balance unavailable. Could not reach provider.")
+    }
+
+    @Test func anAmountNeverCarriesAReason() {
+        let presentation = BalancePresentation(
+            balance: AccountBalance(provider: "deepseek", amountUSD: 12.40, lastPolledAt: UITestFixtures.now)
+        )
+
+        #expect(presentation.reasonText == nil)
+    }
+
+    @Test func aFailedKeyCapPollExplainsItselfRatherThanClaimingNoLimit() {
+        let presentation = BalancePresentation(
+            balance: AccountBalance(
+                provider: "openrouter",
+                amountUSD: nil,
+                lastPolledAt: UITestFixtures.now,
+                kind: .keyLimit,
+                unavailableReason: BalanceUnavailableReason(.unexpectedResponse, statusCode: 200)
+            )
+        )
+
+        #expect(presentation.amountText == "Balance unavailable")
+        #expect(presentation.reasonText == "Unexpected response")
     }
 
     @Test func fixtureBalancesCoverAllThreeCases() {
@@ -86,6 +142,7 @@ struct BalancesTests {
         )
 
         #expect(presentation.amountText == "No key limit")
+        #expect(presentation.reasonText == nil)
         #expect(presentation.usageText == "used $4.25")
         #expect(presentation.isUnavailable)
         #expect(presentation.accessibilityLabel == "OpenRouter, no key limit set, used $4.25")

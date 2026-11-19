@@ -9,6 +9,47 @@ public enum BalanceKind: String, Codable, Sendable, Equatable {
     case keyLimit
 }
 
+/// Why an account has no balance amount to show.
+///
+/// A reason is a category plus, at most, the status the provider answered with. It can never
+/// carry a response body or any part of a key, which is what makes it safe to write to the
+/// snapshot and to show on screen.
+public struct BalanceUnavailableReason: Codable, Sendable, Equatable {
+    public enum Category: String, Codable, Sendable, Equatable, CaseIterable {
+        /// The provider needs an API key and none is stored.
+        case notConfigured
+        /// The Keychain refused the read.
+        case keyUnavailable
+        /// The provider answered that the key is not valid.
+        case keyRejected
+        /// The request never reached an answer: no network, or a timeout.
+        case unreachable
+        /// The provider answered with something Surge cannot read.
+        case unexpectedResponse
+    }
+
+    public let category: Category
+    /// The HTTP status the provider answered with, when the request reached it. Recorded for
+    /// diagnosis only; the row shows the category.
+    public let statusCode: Int?
+
+    public init(_ category: Category, statusCode: Int? = nil) {
+        self.category = category
+        self.statusCode = statusCode
+    }
+
+    /// The short plain-English reason that appears beside an unavailable balance.
+    public var text: String {
+        switch category {
+        case .notConfigured: "No key set"
+        case .keyUnavailable: "Key not readable"
+        case .keyRejected: "Key rejected"
+        case .unreachable: "Could not reach provider"
+        case .unexpectedResponse: "Unexpected response"
+        }
+    }
+}
+
 public struct AccountBalance: Identifiable, Codable, Sendable, Equatable {
     public let provider: String
     public let amountUSD: Double?
@@ -16,19 +57,24 @@ public struct AccountBalance: Identifiable, Codable, Sendable, Equatable {
     public let kind: BalanceKind
     /// The provider's cumulative usage figure, when it reports one alongside the amount.
     public let usageUSD: Double?
+    /// Why there is no amount, when the last poll ended without one. Nil is the design case: the
+    /// provider has no balance endpoint, or answered without a figure to report.
+    public let unavailableReason: BalanceUnavailableReason?
 
     public init(
         provider: String,
         amountUSD: Double?,
         lastPolledAt: Date,
         kind: BalanceKind = .wallet,
-        usageUSD: Double? = nil
+        usageUSD: Double? = nil,
+        unavailableReason: BalanceUnavailableReason? = nil
     ) {
         self.provider = provider
         self.amountUSD = amountUSD
         self.lastPolledAt = lastPolledAt
         self.kind = kind
         self.usageUSD = usageUSD
+        self.unavailableReason = unavailableReason
     }
 
     public var id: String { provider }
@@ -47,6 +93,7 @@ public struct AccountBalance: Identifiable, Codable, Sendable, Equatable {
         case lastPolledAt
         case kind
         case usageUSD
+        case unavailableReason
     }
 
     /// A snapshot written before the balance kind existed still reads as a wallet balance.
@@ -57,6 +104,7 @@ public struct AccountBalance: Identifiable, Codable, Sendable, Equatable {
         lastPolledAt = try container.decode(Date.self, forKey: .lastPolledAt)
         kind = try container.decodeIfPresent(BalanceKind.self, forKey: .kind) ?? .wallet
         usageUSD = try container.decodeIfPresent(Double.self, forKey: .usageUSD)
+        unavailableReason = try container.decodeIfPresent(BalanceUnavailableReason.self, forKey: .unavailableReason)
     }
 }
 
