@@ -8,6 +8,12 @@ let package = Package(
     dependencies: [.package(path: "../SurgeCore")],
     targets: [
         .target(name: "SurgeIngestTailer", dependencies: [.product(name: "SurgeCore", package: "SurgeCore")]),
-        .testTarget(name: "SurgeIngestTailerTests", dependencies: ["SurgeIngestTailer"]),
+        .testTarget(
+            name: "SurgeIngestTailerTests",
+            dependencies: [
+                "SurgeIngestTailer",
+                .product(name: "SurgeCore", package: "SurgeCore"),
+            ]
+        ),
     ]
 )
