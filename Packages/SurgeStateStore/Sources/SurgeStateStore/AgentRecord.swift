@@ -102,7 +102,7 @@ struct AgentRecord: Equatable {
     func node(now: Date, stallThreshold: TimeInterval) -> AgentNode {
         AgentNode(
             id: id,
-            provider: provider,
+            provider: providerFamily,
             modelName: modelName,
             status: status(now: now, stallThreshold: stallThreshold),
             inputTokens: inputTokens,
@@ -116,6 +116,14 @@ struct AgentRecord: Equatable {
             harness: harness,
             billingAccount: billingAccount
         )
+    }
+
+    /// The billing provider family, which is what spend is grouped by. The account that pays
+    /// decides when one is named: a harness is not a provider, and one harness can be billed by
+    /// more than one account. `harness` stays the separate identity of the program that ran it.
+    var providerFamily: String {
+        if let family = billingAccount?.family { return family.rawValue }
+        return (Provider(providerID: provider) ?? .other).rawValue
     }
 
     /// Nil while any turn on this agent was priced by nothing at all, so the UI says unavailable

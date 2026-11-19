@@ -86,7 +86,10 @@ final class AppModel {
         self.catalogStore = catalogStore
         storeModel = SurgeStoreModel(store: store)
         writer = SnapshotWriter(clock: clock)
-        ledger = DailySpendLedger(seed: SnapshotFileStore().read())
+        ledger = DailySpendLedger(
+            seed: SnapshotFileStore().read(),
+            accounts: settings.billingConfiguration().accounts
+        )
     }
 
     // MARK: - Reading
@@ -258,7 +261,7 @@ final class AppModel {
         storeModel.apply(tree)
         let now = clock()
         self.now = now
-        ledger.record(workspaces: tree.workspaces, at: now)
+        ledger.record(workspaces: tree.workspaces, balances: tree.balances, at: now)
         throughput.record(workspaces: tree.workspaces, at: now)
         let alerts = planner.evaluate(
             agents: Self.alertStates(in: tree.workspaces),

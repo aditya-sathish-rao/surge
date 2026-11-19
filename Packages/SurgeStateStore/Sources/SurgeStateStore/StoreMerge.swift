@@ -81,6 +81,8 @@ extension SurgeStateStore {
             inputTokens: turn.inputTokens,
             outputTokens: turn.outputTokens,
             cacheHitTokens: turn.cacheHitTokens,
+            providerReportedUSD: turn.turnProviderReportedUSD,
+            harnessReportedUSD: turn.turnHarnessReportedUSD,
             harnessReportedCumulativeUSD: turn.harnessReportedCostUSD
         )
         agent.recordActivity(

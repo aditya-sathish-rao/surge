@@ -72,7 +72,9 @@ final class TranscriptFileWatcher: @unchecked Sendable {
 /// What the tailer keeps for one transcript file.
 struct FileState {
     let sourceKind: TranscriptSourceKind
-    let provider: String
+    /// The provider family that bills this session. A source that names it per record updates it
+    /// as records arrive; it is never the harness name.
+    var provider: String
     let transport: HarnessIdentity.Transport
     let sessionID: String
     var parentSessionID: String?

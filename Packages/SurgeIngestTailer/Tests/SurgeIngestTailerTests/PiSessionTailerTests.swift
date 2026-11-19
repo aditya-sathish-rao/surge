@@ -4,7 +4,7 @@ import Testing
 
 @testable import SurgeIngestTailer
 
-private func makePiTailer(
+func makePiTailer(
     _ fixture: TailerFixture,
     checkpoints: [TailerCheckpoint] = []
 ) -> TranscriptTailer {
@@ -15,7 +15,7 @@ private func makePiTailer(
     )
 }
 
-private let piSession = "pi-session"
+let piSession = "pi-session"
 
 @Test func piResumesFromSavedOffsetWithNoDuplicateTurns() async throws {
     let fixture = try TailerFixture()
@@ -143,7 +143,7 @@ private let piSession = "pi-session"
 
     let descriptor = try #require(appeared(in: events).first)
     #expect(descriptor.id == piSession)
-    #expect(descriptor.provider == "pi")
+    #expect(descriptor.provider == "anthropic")
     #expect(descriptor.modelName == "claude-sonnet-5-5")
     #expect(descriptor.maxContextWindow == 200_000)
     #expect(descriptor.projectPath == "/Users/dev/workspace")
@@ -280,9 +280,11 @@ private let piSession = "pi-session"
     _ = await recorder.wait(forCount: 4)
 
     let cost = try #require(await tailer.cost(forSession: piSession))
-    #expect(cost.provider == "pi")
+    #expect(cost.provider == "anthropic")
     #expect(cost.providerReportedUSD == 0.5)
-    #expect(cost.locallyEstimatedUSD == 0.25)
+    // pi's own figure for a turn is the harness's number, not a local estimate.
+    #expect(cost.harnessReportedUSD == 0.25)
+    #expect(cost.locallyEstimatedUSD == nil)
     #expect(cost.unavailableTurnCount == 1)
     #expect(cost.provenance == .mixed)
     await tailer.shutdown()

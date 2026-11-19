@@ -66,6 +66,10 @@ extension SurgeStateStore {
     ///
     /// The figure and its label come from `BillingResolver`, so the precedence rules live in one
     /// place. A turn nothing could price is marked unpriced so the UI says unavailable, not free.
+    ///
+    /// `harnessReportedUSD` is the harness's own amount for this one turn. `harnessReportedCumulativeUSD`
+    /// is a running session total, where only the increase is new spend. A harness writes one or the
+    /// other, never both.
     func book(
         cost agent: inout AgentRecord,
         modelName: String,
@@ -73,6 +77,7 @@ extension SurgeStateStore {
         outputTokens: Int,
         cacheHitTokens: Int,
         providerReportedUSD: Double? = nil,
+        harnessReportedUSD: Double? = nil,
         harnessReportedCumulativeUSD: Double? = nil
     ) {
         let tokens = inputTokens + outputTokens + cacheHitTokens
@@ -84,7 +89,8 @@ extension SurgeStateStore {
         )
         let figures = TurnFigures(
             providerReportedUSD: providerReportedUSD,
-            harnessReportedUSD: harnessIncrease(&agent, cumulative: harnessReportedCumulativeUSD),
+            harnessReportedUSD: harnessReportedUSD
+                ?? harnessIncrease(&agent, cumulative: harnessReportedCumulativeUSD),
             estimateUSD: estimate
         )
         if let booked = BillingResolver.book(figures, attribution: agent.attribution ?? .none) {
@@ -161,20 +167,26 @@ extension SurgeStateStore {
         for entry in agents where entry.agent.tokensSinceBalancePoll > 0 {
             tokensByAgent[entry.agent.id] = entry.agent.tokensSinceBalancePoll
         }
+        let pricedByMovement = movement?.hasSpend == true && tokensByAgent.isEmpty == false
         let shares =
-            movement?.hasSpend == true
+            pricedByMovement
             ? SpendAttribution.shares(dropUSD: movement?.dropUSD ?? 0, tokensByAgent: tokensByAgent)
             : [:]
 
         for entry in agents {
             var agent = entry.agent
-            if let share = shares[agent.id] {
+            if pricedByMovement {
                 // The observed drop replaces exactly what this window booked, so the same tokens
                 // are never counted once as an estimate and again as derived spend.
                 agent.costBySource.remove(agent.windowSpend)
-                agent.costBySource.add(share, source: .balanceDerived)
+                if let share = shares[agent.id] {
+                    agent.costBySource.add(share, source: .balanceDerived)
+                }
                 agent.unpricedTokens = 0
             }
+            // A top-up, a poll that did not move, or a movement shared by no agent leaves the
+            // window's own figures in place: those tokens were spent, and nothing measures them
+            // better. Only the window itself closes.
             agent.windowSpend = SpendBySource()
             agent.tokensSinceBalancePoll = 0
             replace(agent, at: entry.projectPath)
