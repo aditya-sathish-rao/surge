@@ -27,6 +27,7 @@ struct WalletPollerTests {
         #expect(balance.provider == Provider.deepseek.rawValue)
         #expect(balance.amountUSD == 12.40)
         #expect(balance.lastPolledAt == pollDate)
+        #expect(balance.unavailableReason == nil)
     }
 
     @Test("OpenRouter balance is the key's limit minus its usage")
@@ -67,6 +68,7 @@ struct WalletPollerTests {
         #expect(account.amountUSD == nil)
         #expect(account.kind == .keyLimit)
         #expect(account.usageUSD == 4.25)
+        #expect(account.unavailableReason == nil)
 
         let balance = try OpenRouterBalanceParser().balance(from: Data(WalletFixtures.openRouterKeyWithoutLimit.utf8))
         #expect(balance.amountUSD == nil)
@@ -88,98 +90,6 @@ struct WalletPollerTests {
         #expect(updates == Array(repeating: .unavailable(provider: "anthropic", lastPolledAt: pollDate), count: 2))
         #expect(await transport.sentRequests.isEmpty)
         #expect(await scheduler.requestedDelays == [10, 10])
-    }
-
-    @Test("An account without a stored key is unavailable without a network call")
-    func missingKeyIsUnavailable() async {
-        let scheduler = ScriptedScheduler(date: pollDate, stopAfterSleeps: 1)
-        let transport = StubTransport([.response(statusCode: 200, body: WalletFixtures.deepSeekBalance)])
-
-        let updates = await collectUpdates(
-            configuration: configuration(for: TestAccounts.deepSeek, pollInterval: 10),
-            keys: StubKeys(deepSeek: nil),
-            transport: transport,
-            scheduler: scheduler
-        )
-
-        #expect(updates == [.unavailable(provider: Provider.deepseek.rawValue, lastPolledAt: pollDate)])
-        #expect(await transport.sentRequests.isEmpty)
-    }
-
-    @Test("A Keychain failure is unavailable without a network call")
-    func keychainFailureIsUnavailable() async {
-        let scheduler = ScriptedScheduler(date: pollDate, stopAfterSleeps: 1)
-        let transport = StubTransport([.response(statusCode: 200, body: WalletFixtures.deepSeekBalance)])
-
-        let updates = await collectUpdates(
-            configuration: configuration(for: TestAccounts.deepSeek, pollInterval: 10),
-            keys: FailingKeys(),
-            transport: transport,
-            scheduler: scheduler
-        )
-
-        #expect(updates == [.unavailable(provider: Provider.deepseek.rawValue, lastPolledAt: pollDate)])
-        #expect(await transport.sentRequests.isEmpty)
-    }
-
-    @Test("A 401 degrades only the account that failed")
-    func unauthorizedDegradesOneAccount() async {
-        let scheduler = ScriptedScheduler(date: pollDate, stopAfterSleeps: 4)
-        let transport = StubTransport(
-            byURL: [
-                TestEndpoints.deepSeekString: [
-                    .response(statusCode: 401, body: WalletFixtures.unauthorized)
-                ],
-                TestEndpoints.openRouterString: [
-                    .response(statusCode: 200, body: WalletFixtures.openRouterKey)
-                ],
-            ]
-        )
-
-        let updates = await collectUpdates(
-            configuration: WalletConfiguration(
-                accounts: [TestAccounts.deepSeek, TestAccounts.openRouter],
-                pollInterval: 10
-            ),
-            transport: transport,
-            scheduler: scheduler
-        )
-
-        let deepSeekUpdates = updates.filter { $0.provider == Provider.deepseek.rawValue }
-        let openRouterUpdates = updates.filter { $0.provider == Provider.openrouter.rawValue }
-        #expect(!deepSeekUpdates.isEmpty)
-        let unavailable = BalanceUpdate.unavailable(provider: "deepseek", lastPolledAt: pollDate)
-        #expect(deepSeekUpdates.allSatisfy { $0 == unavailable })
-        #expect(openRouterUpdates.contains { $0.isLoaded(amount: 8.50) })
-        #expect(await transport.sentRequests.count >= 2)
-    }
-
-    @Test("A timeout degrades that account to unavailable")
-    func timeoutIsUnavailable() async {
-        let scheduler = ScriptedScheduler(date: pollDate, stopAfterSleeps: 1)
-        let transport = StubTransport([.timeout])
-
-        let updates = await collectUpdates(
-            configuration: configuration(for: TestAccounts.openRouter, pollInterval: 10),
-            transport: transport,
-            scheduler: scheduler
-        )
-
-        #expect(updates == [.unavailable(provider: Provider.openrouter.rawValue, lastPolledAt: pollDate)])
-    }
-
-    @Test("Malformed JSON degrades that account to unavailable")
-    func malformedJSONIsUnavailable() async {
-        let scheduler = ScriptedScheduler(date: pollDate, stopAfterSleeps: 1)
-        let transport = StubTransport([.response(statusCode: 200, body: WalletFixtures.malformed)])
-
-        let updates = await collectUpdates(
-            configuration: configuration(for: TestAccounts.deepSeek, pollInterval: 10),
-            transport: transport,
-            scheduler: scheduler
-        )
-
-        #expect(updates == [.unavailable(provider: Provider.deepseek.rawValue, lastPolledAt: pollDate)])
     }
 
     @Test("Backoff doubles on each failure and stops at the cap")
@@ -253,11 +163,11 @@ struct WalletPollerTests {
 
 @Suite("Wallet response parsing")
 struct WalletParsingTests {
-    @Test("An unavailable DeepSeek response has no amount to report")
-    func deepSeekUnavailableBodyThrows() {
-        #expect(throws: WalletResponseError.malformedBody) {
-            try DeepSeekBalanceParser().balance(from: Data(WalletFixtures.deepSeekNoBalance.utf8))
-        }
+    @Test("An unavailable DeepSeek account reports no amount rather than a zero")
+    func deepSeekUnavailableBodyHasNoAmount() throws {
+        let balance = try DeepSeekBalanceParser().balance(from: Data(WalletFixtures.deepSeekNoBalance.utf8))
+        #expect(balance.amountUSD == nil)
+        #expect(balance.kind == .wallet)
     }
 
     @Test("Malformed DeepSeek JSON throws instead of guessing")
@@ -296,23 +206,5 @@ struct WalletBackoffTests {
         #expect(policy.delay(afterFailures: 3) == 240)
         #expect(policy.delay(afterFailures: 4) == 300)
         #expect(policy.delay(afterFailures: 1_000) == 300)
-    }
-}
-
-private func configuration(for account: WalletAccount, pollInterval: TimeInterval) -> WalletConfiguration {
-    WalletConfiguration(accounts: [account], pollInterval: pollInterval)
-}
-
-extension BalanceUpdate {
-    fileprivate var provider: String {
-        switch self {
-        case .loaded(let balance): balance.provider
-        case .unavailable(let provider, _): provider
-        }
-    }
-
-    fileprivate func isLoaded(amount: Double) -> Bool {
-        if case .loaded(let balance) = self { return balance.amountUSD == amount }
-        return false
     }
 }

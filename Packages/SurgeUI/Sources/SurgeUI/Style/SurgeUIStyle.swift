@@ -81,6 +81,8 @@ enum SurgeUIFont {
     static let balanceAmount = SurgeTypography.title
     static let balanceName = SurgeTypography.body
     static let balanceQualifier = SurgeTypography.meta
+    /// Why a balance is missing is prose, so it takes the sans caption rather than the mono path style.
+    static let balanceReason = SurgeTypography.meta
     static let balanceCaption = SurgeTypography.path
     static let emptyPrompt = SurgeTypography.mono(13)
     static let emptyDetail = SurgeTypography.body

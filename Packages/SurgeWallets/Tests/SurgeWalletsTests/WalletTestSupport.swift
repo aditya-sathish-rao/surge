@@ -132,3 +132,33 @@ func collectUpdates(
     }
     return updates
 }
+
+/// One account, polled on an injected cadence.
+func configuration(for account: WalletAccount, pollInterval: TimeInterval) -> WalletConfiguration {
+    WalletConfiguration(accounts: [account], pollInterval: pollInterval)
+}
+
+extension BalanceUpdate {
+    /// The record a poll published, whichever case carried it.
+    var account: AccountBalance? {
+        if case .loaded(let balance) = self { return balance }
+        return nil
+    }
+
+    /// Why the poll ended without an amount, read off the published record.
+    var reason: BalanceUnavailableReason? {
+        account?.unavailableReason
+    }
+
+    var provider: String {
+        switch self {
+        case .loaded(let balance): balance.provider
+        case .unavailable(let provider, _): provider
+        }
+    }
+
+    func isLoaded(amount: Double) -> Bool {
+        if case .loaded(let balance) = self { return balance.amountUSD == amount }
+        return false
+    }
+}

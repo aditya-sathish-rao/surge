@@ -26,13 +26,18 @@ protocol BalanceResponseParsing: Sendable {
 }
 
 /// Parses `GET https://api.deepseek.com/user/balance`.
+///
+/// An account the provider reports as not available carries no figure, so it reports no amount
+/// rather than a zero the provider never quoted.
 struct DeepSeekBalanceParser: BalanceResponseParsing {
     func balance(from data: Data) throws -> WalletBalance {
-        guard let response = try? JSONDecoder().decode(DeepSeekBalanceResponse.self, from: data),
-            response.isAvailable,
-            let info = response.balanceInfos.first,
-            let amount = Double(info.totalBalance)
-        else {
+        guard let response = try? JSONDecoder().decode(DeepSeekBalanceResponse.self, from: data) else {
+            throw WalletResponseError.malformedBody
+        }
+        guard response.isAvailable, let info = response.balanceInfos.first else {
+            return WalletBalance(amountUSD: nil, usageUSD: nil, kind: .wallet)
+        }
+        guard let amount = Double(info.totalBalance) else {
             throw WalletResponseError.malformedBody
         }
         return WalletBalance(amountUSD: amount, usageUSD: nil, kind: .wallet)

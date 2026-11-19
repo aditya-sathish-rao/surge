@@ -10,6 +10,9 @@ public struct BalancePresentation: Sendable, Equatable {
     public let usageText: String?
     public let level: BalanceLevel?
     public let isUnavailable: Bool
+    /// Why the balance is missing, in plain English. Nil when having no amount is expected, such
+    /// as a provider that exposes no balance endpoint.
+    public let reasonText: String?
     public let accessibilityLabel: String
 
     public init(balance: AccountBalance) {
@@ -20,18 +23,24 @@ public struct BalancePresentation: Sendable, Equatable {
 
         guard let amount = balance.amountUSD else {
             level = nil
-            switch balance.kind {
-            case .wallet:
-                amountText = "Balance unavailable"
-                accessibilityLabel = "\(providerName), balance unavailable"
-            case .keyLimit:
+            let reason = balance.unavailableReason
+            reasonText = reason?.text
+            if balance.kind == .keyLimit, reason == nil {
                 // The key has no cap, which is not the same as an empty account.
                 amountText = "No key limit"
                 accessibilityLabel = Self.keyLimitAccessibility(providerName, usage: balance.usageUSD)
+            } else {
+                amountText = "Balance unavailable"
+                if let reason {
+                    accessibilityLabel = "\(providerName), balance unavailable. \(reason.text)."
+                } else {
+                    accessibilityLabel = "\(providerName), balance unavailable"
+                }
             }
             return
         }
 
+        reasonText = nil
         let level = SurgeThresholds.balanceLevel(forUSD: amount)
         self.level = level
         let kindWord = balance.kind == .keyLimit ? "key cap" : "balance"
@@ -115,13 +124,22 @@ public struct BalancesCard: View {
     private func row(_ presentation: BalancePresentation) -> some View {
         HStack(spacing: SurgeSpacing.space1) {
             ProviderDot(provider: presentation.provider)
-            Text(presentation.providerName)
-                .font(SurgeUIFont.balanceName)
-                .foregroundStyle(SurgeInk.primary())
-            if let qualifier = presentation.qualifier {
-                Text(qualifier)
-                    .font(SurgeUIFont.balanceQualifier)
-                    .foregroundStyle(presentation.qualifierColor ?? SurgeInk.secondary(contrastLevel))
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: SurgeSpacing.space1) {
+                    Text(presentation.providerName)
+                        .font(SurgeUIFont.balanceName)
+                        .foregroundStyle(SurgeInk.primary())
+                    if let qualifier = presentation.qualifier {
+                        Text(qualifier)
+                            .font(SurgeUIFont.balanceQualifier)
+                            .foregroundStyle(presentation.qualifierColor ?? SurgeInk.secondary(contrastLevel))
+                    }
+                }
+                if let reasonText = presentation.reasonText {
+                    Text(reasonText)
+                        .font(SurgeUIFont.balanceReason)
+                        .foregroundStyle(SurgeInk.secondary(contrastLevel))
+                }
             }
             Spacer(minLength: SurgeSpacing.space2)
             if let usageText = presentation.usageText {

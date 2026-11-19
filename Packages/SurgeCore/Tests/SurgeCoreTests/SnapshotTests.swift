@@ -45,4 +45,46 @@ struct SnapshotTests {
         #expect(point.spend(for: .anthropic) == 1.0)
         #expect(point.spend(for: .openrouter) == 0)
     }
+
+    @Test func anUnavailableReasonSurvivesTheSnapshotRoundTrip() throws {
+        let balance = AccountBalance(
+            provider: "deepseek",
+            amountUSD: nil,
+            lastPolledAt: SurgeFixtures.referenceDate,
+            unavailableReason: BalanceUnavailableReason(.keyRejected, statusCode: 401)
+        )
+        let data = try JSONEncoder().encode(balance)
+        let decoded = try JSONDecoder().decode(AccountBalance.self, from: data)
+
+        #expect(decoded == balance)
+        #expect(decoded.unavailableReason?.category == .keyRejected)
+        #expect(decoded.unavailableReason?.statusCode == 401)
+        #expect(decoded.isAvailable == false)
+    }
+
+    @Test func aSnapshotFromBeforeReasonsStillDecodes() throws {
+        let legacy = """
+            {
+              "provider": "anthropic",
+              "amountUSD": null,
+              "lastPolledAt": 761000000,
+              "kind": "wallet"
+            }
+            """
+        let balance = try JSONDecoder().decode(AccountBalance.self, from: Data(legacy.utf8))
+
+        #expect(balance.provider == "anthropic")
+        #expect(balance.unavailableReason == nil)
+        #expect(balance.amountUSD == nil)
+    }
+
+    @Test func everyReasonCategoryHasItsOwnPlainEnglishText() {
+        let texts = BalanceUnavailableReason.Category.allCases.map { BalanceUnavailableReason($0).text }
+
+        #expect(texts.count == Set(texts).count)
+        #expect(texts.allSatisfy { $0.isEmpty == false })
+        #expect(BalanceUnavailableReason(.keyRejected).text == "Key rejected")
+        #expect(BalanceUnavailableReason(.unreachable).text == "Could not reach provider")
+        #expect(BalanceUnavailableReason(.unexpectedResponse).text == "Unexpected response")
+    }
 }
