@@ -1,37 +1,19 @@
-import AppKit
-import SurgeCore
-import SurgeStateStore
-import SurgeUI
 import SwiftUI
 
 @main
 struct SurgeApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     var body: some Scene {
         MenuBarExtra {
-            PlaceholderPopover()
+            DashboardView(model: AppModel.shared)
         } label: {
-            Image("MenuBarIcon")
-                .accessibilityLabel("Surge")
+            MenuBarLabel(model: AppModel.shared)
         }
         .menuBarExtraStyle(.window)
-    }
-}
 
-struct PlaceholderPopover: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("No agents running")
-                .font(.headline)
-            Text("Start Claude Code, or point workers at 127.0.0.1:8899.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Divider()
-            Button("Quit Surge") {
-                NSApplication.shared.terminate(nil)
-            }
-            .keyboardShortcut("q")
+        Settings {
+            SettingsView(model: AppModel.shared)
         }
-        .padding(16)
-        .frame(width: 360, alignment: .leading)
     }
 }
