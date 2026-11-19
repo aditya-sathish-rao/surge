@@ -18,6 +18,8 @@ final class AppModel {
     static let shared = AppModel()
 
     let settings: SurgeSettings
+    /// The one place the app reads and writes provider keys. Only the app target touches it.
+    let keys: KeychainWalletKeys
     private(set) var storeModel: SurgeStoreModel
     private(set) var now: Date
     private(set) var isPaused = false
@@ -28,6 +30,7 @@ final class AppModel {
     private let tailer: TranscriptTailer
     private let proxy: ProxyServer
     private let store: SurgeStateStore
+    private let catalogStore: ModelCatalogStore
     private let writer: SnapshotWriter
     private let notifications = NotificationCenterPoster()
     private let tailerGate: PausablePipeline<TailerEvent>
@@ -46,9 +49,12 @@ final class AppModel {
         let settings = SurgeSettings()
         self.settings = settings
 
+        let keys = KeychainWalletKeys()
+        self.keys = keys
         let tailer = TranscriptTailer(clock: clock)
         let proxy = ProxyServer(clock: clock)
-        let wallets = WalletPoller(keys: KeychainWalletKeys())
+        let wallets = WalletPoller(keys: keys)
+        let catalogStore = ModelCatalogStore(directory: SnapshotLocation.local().directory)
         let tailerGate = PausablePipeline(upstream: tailer.events())
         let proxyGate = PausablePipeline(upstream: proxy.events())
         let walletGate = PausablePipeline(upstream: wallets.updates())
@@ -58,6 +64,7 @@ final class AppModel {
             proxy: PausableWorkerTraffic(pipeline: proxyGate),
             wallets: PausableWalletPolling(pipeline: walletGate),
             pricing: pricing,
+            catalog: catalogStore.load(),
             balanceThresholds: settings.balanceThresholds,
             clock: clock
         )
@@ -68,6 +75,7 @@ final class AppModel {
         self.proxyGate = proxyGate
         self.walletGate = walletGate
         self.store = store
+        self.catalogStore = catalogStore
         storeModel = SurgeStoreModel(store: store)
         writer = SnapshotWriter(clock: clock)
         ledger = DailySpendLedger(seed: SnapshotFileStore().read())
@@ -83,13 +91,22 @@ final class AppModel {
         MenuBarReadout(
             orchestrators: storeModel.orchestratorCount,
             workers: storeModel.workerCount,
-            spendUSD: todaySpendUSD,
+            spend: todaySpendFigure,
             attentionCount: storeModel.attentionCount
         )
     }
 
     var todaySpendUSD: Double {
         ledger.todayTotal(at: now)
+    }
+
+    /// Today's total with its label. The number is never shown without it.
+    var todaySpendFigure: SpendFigure {
+        ledger.todayFigure(at: now)
+    }
+
+    var todaySpendSource: CostSource {
+        ledger.todaySource(at: now)
     }
 
     var todaySpendPoint: DailySpendPoint {
@@ -138,7 +155,31 @@ final class AppModel {
             await self.tailer.start()
         }
         startTicker()
+        startModelCatalog()
         Task { await notifications.requestAuthorization() }
+    }
+
+    /// Fetches the providers' own model lists, caches them and hands them to the store. A failed
+    /// fetch leaves the cached numbers in place, so an offline launch never falls back to a
+    /// frozen table that does not know the model.
+    func refreshModelCatalog() async {
+        let fetched = await ModelCatalogClient(keys: keys).fetch()
+        guard fetched.isEmpty == false else { return }
+        let merged = catalogStore.load().merging(fetched)
+        catalogStore.save(merged)
+        await store.updateCatalog(merged)
+    }
+
+    private func startModelCatalog() {
+        Task { [weak self] in
+            await self?.refreshModelCatalog()
+        }
+        Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(21_600))
+                await self?.refreshModelCatalog()
+            }
+        }
     }
 
     /// Stops the store seeing new pipeline events without finishing any pipeline stream.

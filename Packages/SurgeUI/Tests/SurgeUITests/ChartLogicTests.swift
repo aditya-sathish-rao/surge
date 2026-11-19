@@ -44,7 +44,7 @@ struct ChartLogicTests {
         #expect(shares.map(\.percent) == [64, 26, 10])
         #expect(shares.map(\.percent).reduce(0, +) == 100)
         #expect(shares.map(\.percentText) == ["64%", "26%", "10%"])
-        #expect(shares.map(\.amountText) == ["$1.02", "$0.42", "$0.15"])
+        #expect(shares.map(\.amountText) == ["$1.02 est.", "$0.42 est.", "$0.15 est."])
         #expect(abs(shares.map(\.fraction).reduce(0, +) - 1) < 0.000_001)
     }
 
@@ -65,13 +65,27 @@ struct ChartLogicTests {
         #expect(shares[0].provider == .deepseek)
         #expect(shares[0].percent == 100)
         #expect(shares[0].fraction == 1)
-        #expect(shares[0].accessibilityLabel == "DeepSeek, $2.00, 100 percent")
+        #expect(shares[0].accessibilityLabel == "DeepSeek, $2.00, estimated, 100 percent")
     }
 
     @Test func aDayWithNoSpendHasNoShares() {
         let day = DailySpendPoint(date: UITestFixtures.now, spendByProvider: [:])
 
         #expect(SpendShares.make(for: day).isEmpty)
+    }
+
+    @Test func aShareCarriesTheSourceItWasGiven() {
+        let day = DailySpendPoint(date: UITestFixtures.now, spendByProvider: ["openrouter": 0.40])
+        let shares = SpendShares.make(for: day, source: .actual)
+
+        #expect(shares[0].amountText == "$0.40 actual")
+        #expect(shares[0].accessibilityLabel == "OpenRouter, $0.40, actual, 100 percent")
+    }
+
+    @Test func theChartHeadlineCarriesItsLabel() {
+        #expect(DailySpendChart.headline(todayUSD: 1.42, source: .estimated) == "$1.42 est. today")
+        #expect(DailySpendChart.headline(todayUSD: 0, source: .derived) == "$0.00 derived today")
+        #expect(DailySpendChart.headline(todayUSD: 2.00, source: .actual) == "$2.00 actual today")
     }
 
     @Test func dailySpendRangeCarriesItsTitleAndLength() {

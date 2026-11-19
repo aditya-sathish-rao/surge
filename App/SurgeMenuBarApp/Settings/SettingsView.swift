@@ -1,14 +1,24 @@
 import SurgeCore
 import SurgeStateStore
 import SurgeUI
+import SurgeWallets
 import SwiftUI
 
-/// The standard settings window: shortcut, stall thresholds, notification opt-ins and balances.
+/// The standard settings window: shortcut, stall thresholds, notifications, balances and keys.
 struct SettingsView: View {
     @Bindable private var settings: SurgeSettings
     @State private var capture = ShortcutCapture()
+    @State private var keyStates: [Provider: ProviderKeyState] = [:]
+    @State private var drafts: [Provider: String] = [:]
+    @State private var keyError: String?
+    private let model: AppModel
+
+    /// Only the providers whose keys Surge actually uses. Anthropic is read from local
+    /// transcripts and exposes no balance endpoint, so it asks for no key.
+    private static let keyProviders: [Provider] = [.deepseek, .openrouter]
 
     init(model: AppModel) {
+        self.model = model
         _settings = Bindable(wrappedValue: model.settings)
     }
 
@@ -50,13 +60,123 @@ struct SettingsView: View {
                 }
                 caption("Each account is measured on its own. Balances are never added together.")
             }
+
+            Section("Provider keys") {
+                ForEach(Self.keyProviders, id: \.self) { provider in
+                    keyRow(for: provider)
+                }
+                if let keyError {
+                    Text(keyError)
+                        .font(SurgeTypography.meta)
+                        .foregroundStyle(SurgeColors.alert)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                caption(
+                    "Keys go to the macOS Keychain and nowhere else. They are used for balances "
+                        + "and model metadata, and are never written to a file, a preference, or "
+                        + "the widget snapshot."
+                )
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 560, height: 640)
+        .frame(width: 560, height: 760)
+        .task { refreshKeyStates() }
         .onChange(of: capture.captured) { _, shortcut in
             guard let shortcut else { return }
             settings.shortcut = shortcut
             capture.reset()
+        }
+    }
+
+    private func keyRow(for provider: Provider) -> some View {
+        VStack(alignment: .leading, spacing: SurgeSpacing.space1) {
+            LabeledContent(provider.name) {
+                HStack(spacing: SurgeSpacing.space2) {
+                    SecureField("Paste a key", text: draftBinding(for: provider))
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minWidth: 220)
+                        .accessibilityLabel("\(provider.name) API key")
+                        .onSubmit { save(provider) }
+                    Button("Save") { save(provider) }
+                        .disabled(draft(for: provider).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button("Remove") { remove(provider) }
+                        .disabled(keyStates[provider] != .configured)
+                }
+            }
+            caption(keyStatusText(for: provider))
+        }
+    }
+
+    private func keyStatusText(for provider: Provider) -> String {
+        switch keyStates[provider] {
+        case .configured: "Configured in the Keychain."
+        case .notConfigured: "Not configured."
+        case .unavailable: "The Keychain could not be read, so \(provider.name) is unavailable."
+        case nil: "Checking the Keychain…"
+        }
+    }
+
+    private func draft(for provider: Provider) -> String {
+        drafts[provider] ?? ""
+    }
+
+    private func draftBinding(for provider: Provider) -> Binding<String> {
+        Binding(
+            get: { drafts[provider] ?? "" },
+            set: { drafts[provider] = $0 }
+        )
+    }
+
+    /// Keychain work runs off the main actor, so opening Settings or saving a key never stalls
+    /// the window or the poll loop.
+    private func refreshKeyStates() {
+        let keys = model.keys
+        let providers = Self.keyProviders
+        Task {
+            let states = await Task.detached { () -> [Provider: ProviderKeyState] in
+                var states: [Provider: ProviderKeyState] = [:]
+                for provider in providers {
+                    states[provider] = keys.keyState(for: provider)
+                }
+                return states
+            }.value
+            keyStates = states
+        }
+    }
+
+    private func save(_ provider: Provider) {
+        let key = draft(for: provider)
+        let keys = model.keys
+        Task {
+            let failure = await Task.detached { () -> Bool in
+                do {
+                    try keys.saveKey(key, for: provider)
+                    return false
+                } catch {
+                    return true
+                }
+            }.value
+            keyError = failure ? "The Keychain refused the key for \(provider.name). Nothing was saved." : nil
+            if !failure { drafts[provider] = "" }
+            refreshKeyStates()
+            await model.refreshModelCatalog()
+        }
+    }
+
+    private func remove(_ provider: Provider) {
+        let keys = model.keys
+        Task {
+            let failure = await Task.detached { () -> Bool in
+                do {
+                    try keys.removeKey(for: provider)
+                    return false
+                } catch {
+                    return true
+                }
+            }.value
+            keyError = failure ? "The Keychain refused to remove the key for \(provider.name)." : nil
+            refreshKeyStates()
         }
     }
 

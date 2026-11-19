@@ -24,7 +24,15 @@ struct AgentRecord: Equatable {
     var cacheHitTokens: Int
     var currentContextTokens: Int
     var maxContextWindow: Int
-    var estimatedCostUSD: Double
+    /// The accumulated amount, kept apart by source so a total can carry the right label.
+    var costBySource = SpendBySource()
+    /// Estimated cost booked since this provider's last successful balance poll. A derived figure
+    /// replaces it, so the same tokens are never counted twice.
+    var pendingEstimateUSD = 0.0
+    /// Tokens seen since that poll, used to share a balance drop between the agents that spent it.
+    var tokensSinceBalancePoll = 0
+    /// Tokens whose model could not be priced. While this is non-zero the cost is unavailable.
+    var unpricedTokens = 0
     var lastTokenAt: Date
     var doneAt: Date?
     var parentSessionID: String?
@@ -86,9 +94,16 @@ struct AgentRecord: Equatable {
             cacheHitTokens: cacheHitTokens,
             currentContextTokens: currentContextTokens,
             maxContextWindow: maxContextWindow,
-            estimatedCostUSD: estimatedCostUSD,
+            estimatedCostUSD: costBySource.totalUSD,
+            costSource: costSource,
             lastTokenAt: lastTokenAt
         )
+    }
+
+    /// Nil while any turn on this agent was priced by nothing at all, so the UI says unavailable
+    /// instead of showing a zero that looks like free.
+    var costSource: CostSource? {
+        unpricedTokens > 0 ? nil : (costBySource.source ?? .estimated)
     }
 }
 

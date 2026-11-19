@@ -185,3 +185,70 @@ import Testing
     let data = Data(#"{"model":"deepseek-chat","choices":[]}"#.utf8)
     #expect(JSONUsageParser.report(from: data, fallbackModel: "deepseek-chat") == nil)
 }
+
+@Test func passesAnOpenRouterReportedCostThroughAsTheActualFigure() async throws {
+    let body = Data(
+        """
+        {"id":"gen-1","model":"anthropic/claude-3.5-sonnet",\
+        "usage":{"prompt_tokens":20,"completion_tokens":5,"cost":0.00123}}
+        """.utf8
+    )
+    let response = ProxyTestSupport.response(
+        headers: ["Content-Type": "application/json"],
+        body: body
+    )
+    let upstream = try MockUpstream(response: response)
+    let upstreamPort = try await upstream.start()
+    let route = try ProxyTestSupport.mockRoute(prefix: "openrouter", upstreamPort: upstreamPort)
+    let (proxy, proxyPort) = try await ProxyTestSupport.startProxy(routes: [route])
+    defer { Task { await proxy.stop() } }
+    let events = proxy.events()
+
+    let request = ProxyTestSupport.request(
+        path: "/openrouter/chat/completions",
+        headers: ["Authorization": "Bearer sk-or-123"],
+        body: Data(#"{"model":"anthropic/claude-3.5-sonnet","usage":{"include":true}}"#.utf8)
+    )
+    _ = try await ProxyTestSupport.exchange(port: proxyPort, request: request)
+    let collected = try await ProxyTestSupport.collectEvents(events, count: 2)
+    let usage = try #require(ProxyTestSupport.usages(in: collected).first)
+
+    let reported = try #require(usage.reportedCostUSD)
+    #expect(abs(reported - 0.00123) < 0.000_000_1)
+    await upstream.stop()
+}
+
+@Test func aResponseWithoutACostReportsNoCostRatherThanZero() throws {
+    let data = Data(
+        #"{"model":"deepseek-chat","usage":{"prompt_tokens":11,"completion_tokens":7}}"#.utf8
+    )
+    let report = try #require(JSONUsageParser.report(from: data, fallbackModel: "deepseek-chat"))
+
+    #expect(report.reportedCostUSD == nil)
+}
+
+@Test func sseCostSurvivesTheFinalUsageEvent() throws {
+    let usageEvent =
+        #"data: {"model":"openrouter/auto","choices":[],"#
+        + #""usage":{"prompt_tokens":10,"completion_tokens":2,"cost":0.0004}}"# + "\n\n"
+    let payload = usageEvent + "data: [DONE]\n\n"
+    var collector = SSEUsageCollector()
+    collector.consume(Data(payload.utf8))
+    let finished = collector.finish()
+    let report = try #require(finished)
+
+    let reported = try #require(report.reportedCostUSD)
+    #expect(abs(reported - 0.0004) < 0.000_000_1)
+}
+
+@Test func aNegativeOrUnparseableCostIsIgnored() throws {
+    let negative = Data(
+        #"{"model":"m","usage":{"prompt_tokens":1,"cost":-0.5}}"#.utf8
+    )
+    #expect(JSONUsageParser.report(from: negative, fallbackModel: nil)?.reportedCostUSD == nil)
+
+    let text = Data(
+        #"{"model":"m","usage":{"prompt_tokens":1,"cost":"variable"}}"#.utf8
+    )
+    #expect(JSONUsageParser.report(from: text, fallbackModel: nil)?.reportedCostUSD == nil)
+}

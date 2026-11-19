@@ -59,12 +59,21 @@ struct DashboardView: View {
     private var spendReadout: some View {
         VStack(alignment: .leading, spacing: SurgeSpacing.space1) {
             SurgeSectionLabel("Spent today")
-            Text(SurgeFormatting.cost(model.todaySpendUSD))
-                .font(SurgeTypography.readoutL)
-                .foregroundStyle(SurgeInk.primary())
-                .monospacedDigit()
-                .contentTransition(.numericText())
-                .accessibilityLabel("\(MenuBarReadout.spokenUSD(model.todaySpendUSD)) spent today")
+            HStack(alignment: .firstTextBaseline, spacing: SurgeSpacing.space1) {
+                Text(SurgeFormatting.cost(model.todaySpendUSD))
+                    .font(SurgeTypography.readoutL)
+                    .foregroundStyle(SurgeInk.primary())
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                Text(model.todaySpendSource.label)
+                    .font(SurgeTypography.meta)
+                    .foregroundStyle(SurgeInk.tertiary(systemContrast))
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(
+                "\(MenuBarReadout.spokenUSD(model.todaySpendUSD)) "
+                    + "\(model.todaySpendSource.label.lowercased()) spent today"
+            )
         }
         .contentShape(Rectangle())
         .gesture(detachGesture)

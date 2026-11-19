@@ -24,15 +24,23 @@ public struct DailySpendChart: View {
     private let days: [DailySpendPoint]
     private let range: DailySpendRange
     private let isWidget: Bool
+    /// How today's amount was obtained. The chart never prints a number without it.
+    private let source: CostSource
     @Environment(\.colorSchemeContrast) private var systemContrast
     @Environment(\.surgeAppearance) private var appearance
 
     private var contrastLevel: ColorSchemeContrast { SurgeAccessibility.contrast(appearance, system: systemContrast) }
 
-    public init(days: [DailySpendPoint], range: DailySpendRange = .fourteenDays, isWidget: Bool = false) {
+    public init(
+        days: [DailySpendPoint],
+        range: DailySpendRange = .fourteenDays,
+        isWidget: Bool = false,
+        source: CostSource = .estimated
+    ) {
         self.days = days
         self.range = range
         self.isWidget = isWidget
+        self.source = source
     }
 
     public var body: some View {
@@ -51,8 +59,12 @@ public struct DailySpendChart: View {
     }
 
     private var todayHeadline: String {
-        let today = visibleDays.last?.totalUSD ?? 0
-        return "\(SurgeFormatting.cost(today)) today"
+        Self.headline(todayUSD: visibleDays.last?.totalUSD ?? 0, source: source)
+    }
+
+    /// The headline always carries the label its number earned.
+    public static func headline(todayUSD: Double, source: CostSource) -> String {
+        "\(SpendFigure(amountUSD: todayUSD, source: source).displayText) today"
     }
 
     private var chart: some View {

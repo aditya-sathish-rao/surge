@@ -79,6 +79,19 @@ public struct StoreTree: Sendable, Equatable {
         workspaces.reduce(0) { $0 + $1.totalTreeCostUSD }
     }
 
+    /// The tree total with the label its weakest part earns. Nil when any agent has no cost figure
+    /// at all, because a partial total would silently understate spend.
+    public var spendFigure: SpendFigure? {
+        guard workspaces.isEmpty == false else {
+            return SpendFigure(amountUSD: 0, source: .estimated)
+        }
+        let figures = workspaces.compactMap(\.spendFigure)
+        guard figures.count == workspaces.count,
+            let source = CostSource.weakest(figures.map(\.source))
+        else { return nil }
+        return SpendFigure(amountUSD: totalSpendUSD, source: source)
+    }
+
     /// The count the workspace header shows when anything inside needs the user.
     public func attentionCount(forWorkspace id: UUID) -> Int {
         guard let workspace = workspaces.first(where: { $0.id == id }) else { return 0 }

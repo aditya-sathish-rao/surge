@@ -105,10 +105,15 @@ public struct WalletPoller: WalletPolling {
     }
 
     private static func update(provider: String, balance: WalletBalance, polledAt: Date) -> BalanceUpdate {
-        guard let amount = balance.amountUSD else {
-            return .unavailable(provider: provider, lastPolledAt: polledAt)
-        }
-        return .loaded(AccountBalance(provider: provider, amountUSD: amount, lastPolledAt: polledAt))
+        BalanceUpdate.loaded(
+            AccountBalance(
+                provider: provider,
+                amountUSD: balance.amountUSD,
+                lastPolledAt: polledAt,
+                kind: balance.kind,
+                usageUSD: balance.usageUSD
+            )
+        )
     }
 
     private static func parser(for provider: Provider) -> (any BalanceResponseParsing)? {

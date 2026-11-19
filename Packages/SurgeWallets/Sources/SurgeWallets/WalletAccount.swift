@@ -24,7 +24,9 @@ public struct WalletAccount: Sendable, Equatable {
 
 public enum WalletEndpoints {
     public static let deepSeekBalance = URL(string: "https://api.deepseek.com/user/balance")
+    public static let deepSeekModels = URL(string: "https://api.deepseek.com/models")
     public static let openRouterKey = URL(string: "https://openrouter.ai/api/v1/auth/key")
+    public static let openRouterModels = URL(string: "https://openrouter.ai/api/v1/models")
 }
 
 public struct WalletConfiguration: Sendable, Equatable {

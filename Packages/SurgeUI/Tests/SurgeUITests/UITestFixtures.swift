@@ -13,6 +13,7 @@ enum UITestFixtures {
         status: AgentStatus = .working,
         contextTokens: Int = 84_000,
         window: Int = 200_000,
+        costSource: CostSource? = .estimated,
         lastTokenAt: Date? = nil
     ) -> AgentNode {
         AgentNode(
@@ -26,6 +27,7 @@ enum UITestFixtures {
             currentContextTokens: contextTokens,
             maxContextWindow: window,
             estimatedCostUSD: 0.30,
+            costSource: costSource,
             lastTokenAt: lastTokenAt ?? now.addingTimeInterval(-8)
         )
     }

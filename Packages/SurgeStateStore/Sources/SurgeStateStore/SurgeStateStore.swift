@@ -20,6 +20,8 @@ public actor SurgeStateStore {
     private let proxy: any WorkerTraffic
     private let wallets: any WalletPolling
     let pricing: PricingTable
+    /// The live model numbers the tree is priced and measured against.
+    private(set) var priceBook: PriceBook
     let balanceThresholds: BalanceThresholds
     private let clock: @Sendable () -> Date
 
@@ -32,7 +34,8 @@ public actor SurgeStateStore {
     public internal(set) var tree: StoreTree
 
     /// - Parameters:
-    ///   - pricing: Supplies the context window and stall threshold per model.
+    ///   - pricing: Supplies the last-known context window, stall threshold and rates per model.
+    ///   - catalog: The provider's own model list, which wins over `pricing` wherever it knows more.
     ///   - balanceThresholds: The Low and Empty thresholds, so Settings can override them.
     ///   - clock: Injected so stall detection and Done expiry are deterministic in tests.
     public init(
@@ -40,6 +43,7 @@ public actor SurgeStateStore {
         proxy: any WorkerTraffic,
         wallets: any WalletPolling,
         pricing: PricingTable = SurgeStateStore.defaultPricing,
+        catalog: ModelCatalog = .empty,
         balanceThresholds: BalanceThresholds = BalanceThresholds(),
         clock: @escaping @Sendable () -> Date = { Date() }
     ) {
@@ -47,9 +51,45 @@ public actor SurgeStateStore {
         self.proxy = proxy
         self.wallets = wallets
         self.pricing = pricing
+        priceBook = PriceBook(catalog: catalog, fallback: pricing)
         self.balanceThresholds = balanceThresholds
         self.clock = clock
         self.tree = StoreTree.empty(at: clock(), balanceThresholds: balanceThresholds)
+    }
+
+    /// Replaces the model numbers after a fresh fetch. Context windows and costs recompute on the
+    /// next publish, so a larger window stops the context meter understating immediately.
+    public func updateCatalog(_ catalog: ModelCatalog) {
+        priceBook = PriceBook(catalog: catalog, fallback: pricing)
+        for projectPath in workspaceRecords.keys {
+            guard var workspace = workspaceRecords[projectPath] else { continue }
+            for id in workspace.agents.keys {
+                guard var agent = workspace.agents[id] else { continue }
+                if let window = priceBook.contextWindow(forModel: agent.modelName) {
+                    agent.maxContextWindow = window
+                }
+                recoverUnpricedCost(&agent)
+                workspace.agents[id] = agent
+            }
+            workspaceRecords[projectPath] = workspace
+        }
+        publish(now: clock())
+    }
+
+    /// A model that was unknown when its tokens arrived can be priced once a model list names it.
+    /// Only agents with no figure at all are repriced, so reported and derived money is never
+    /// overwritten by a local estimate.
+    private func recoverUnpricedCost(_ agent: inout AgentRecord) {
+        guard agent.unpricedTokens > 0, agent.costBySource.totalUSD == 0,
+            let estimate = priceBook.estimatedCostUSD(
+                forModel: agent.modelName,
+                inputTokens: agent.inputTokens,
+                outputTokens: agent.outputTokens,
+                cacheHitTokens: agent.cacheHitTokens
+            )
+        else { return }
+        agent.costBySource.add(estimate, source: .estimated)
+        agent.unpricedTokens = 0
     }
 
     /// Starts one task per pipeline. Each stream is consumed in order, so events on one pipeline

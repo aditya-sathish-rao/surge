@@ -4,10 +4,17 @@ import SurgeCore
 /// What one provider response says about an account.
 ///
 /// `amountUSD` is nil when the provider answered but quotes no remaining balance.
-/// `cumulativeUsageUSD` is the provider's own lifetime usage total, when it reports one.
+/// `usageUSD` is the provider's own cumulative usage total, when it reports one.
 struct WalletBalance: Sendable, Equatable {
     let amountUSD: Double?
-    let cumulativeUsageUSD: Double?
+    let usageUSD: Double?
+    let kind: BalanceKind
+
+    init(amountUSD: Double?, usageUSD: Double? = nil, kind: BalanceKind = .wallet) {
+        self.amountUSD = amountUSD
+        self.usageUSD = usageUSD
+        self.kind = kind
+    }
 }
 
 enum WalletResponseError: Error, Sendable, Equatable {
@@ -28,7 +35,7 @@ struct DeepSeekBalanceParser: BalanceResponseParsing {
         else {
             throw WalletResponseError.malformedBody
         }
-        return WalletBalance(amountUSD: amount, cumulativeUsageUSD: nil)
+        return WalletBalance(amountUSD: amount, usageUSD: nil, kind: .wallet)
     }
 }
 
@@ -52,15 +59,16 @@ private struct DeepSeekBalanceInfo: Decodable {
 
 /// Parses `GET https://openrouter.ai/api/v1/auth/key`.
 ///
-/// Remaining balance is the key's spend limit minus its usage. A key without a limit
-/// has no remaining balance to report, but its usage is still recorded.
+/// Remaining balance is the key's spend limit minus its usage. That is a per-key cap, not the
+/// account wallet, so it is labelled as one. A key without a limit has no remaining amount to
+/// report, but its cumulative usage is still shown.
 struct OpenRouterBalanceParser: BalanceResponseParsing {
     func balance(from data: Data) throws -> WalletBalance {
         guard let response = try? JSONDecoder().decode(OpenRouterKeyResponse.self, from: data) else {
             throw WalletResponseError.malformedBody
         }
         let amount = response.data.limit.map { max($0 - response.data.usage, 0) }
-        return WalletBalance(amountUSD: amount, cumulativeUsageUSD: response.data.usage)
+        return WalletBalance(amountUSD: amount, usageUSD: response.data.usage, kind: .keyLimit)
     }
 }
 

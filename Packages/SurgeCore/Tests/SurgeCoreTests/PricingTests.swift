@@ -9,7 +9,10 @@ struct PricingTests {
         #expect(table.models.count == 4)
         #expect(table.contextWindow(forModel: "claude-sonnet") == 200_000)
         #expect(table.contextWindow(forModel: "claude-sonnet-5-5") == 200_000)
-        #expect(table.contextWindow(forModel: "deepseek-chat") == 128_000)
+        // DeepSeek's own model list reports 1,048,576 for both current models. The bundled file
+        // holds that last-known value for the first launch before the live fetch lands.
+        #expect(table.contextWindow(forModel: "deepseek-chat") == 1_048_576)
+        #expect(table.contextWindow(forModel: "deepseek-reasoner") == 1_048_576)
         #expect(table.stallThresholdSeconds(forModel: "deepseek-reasoner") == 300)
         #expect(table.stallThresholdSeconds(forModel: "deepseek-chat") == 120)
         #expect(table.stallThresholdSeconds(forModel: "claude-sonnet-5-5") == 120)

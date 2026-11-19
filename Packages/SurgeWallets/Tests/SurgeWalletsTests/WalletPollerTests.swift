@@ -48,8 +48,8 @@ struct WalletPollerTests {
         #expect(balance.amountUSD == 8.50)
     }
 
-    @Test("An OpenRouter key without a limit reports unavailable but keeps its usage")
-    func openRouterWithoutLimitIsUnavailable() async throws {
+    @Test("An OpenRouter key without a limit reports no amount but keeps its usage")
+    func openRouterWithoutLimitKeepsItsUsage() async throws {
         let scheduler = ScriptedScheduler(date: pollDate, stopAfterSleeps: 1)
         let transport = StubTransport([.response(statusCode: 200, body: WalletFixtures.openRouterKeyWithoutLimit)])
 
@@ -59,11 +59,19 @@ struct WalletPollerTests {
             scheduler: scheduler
         )
 
-        #expect(updates == [.unavailable(provider: Provider.openrouter.rawValue, lastPolledAt: pollDate)])
+        guard case .loaded(let account) = updates.first else {
+            Issue.record("expected a loaded balance, got \(String(describing: updates.first))")
+            return
+        }
+        #expect(account.provider == Provider.openrouter.rawValue)
+        #expect(account.amountUSD == nil)
+        #expect(account.kind == .keyLimit)
+        #expect(account.usageUSD == 4.25)
 
         let balance = try OpenRouterBalanceParser().balance(from: Data(WalletFixtures.openRouterKeyWithoutLimit.utf8))
         #expect(balance.amountUSD == nil)
-        #expect(balance.cumulativeUsageUSD == 4.25)
+        #expect(balance.usageUSD == 4.25)
+        #expect(balance.kind == .keyLimit)
     }
 
     @Test("A provider with no balance endpoint is unavailable without a network call")
@@ -266,7 +274,7 @@ struct WalletParsingTests {
             """
         let balance = try OpenRouterBalanceParser().balance(from: Data(body.utf8))
         #expect(balance.amountUSD == 0)
-        #expect(balance.cumulativeUsageUSD == 1.5)
+        #expect(balance.usageUSD == 1.5)
     }
 
     @Test("Malformed OpenRouter JSON throws instead of guessing")

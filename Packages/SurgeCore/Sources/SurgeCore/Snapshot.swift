@@ -1,14 +1,34 @@
 import Foundation
 
+/// Whether a reported amount is a spendable wallet or a cap on one key.
+///
+/// OpenRouter reports usage per key and, when the key has a spend limit, what is left of it. That
+/// is a per-key cap, not the account wallet, so the two never read the same way.
+public enum BalanceKind: String, Codable, Sendable, Equatable {
+    case wallet
+    case keyLimit
+}
+
 public struct AccountBalance: Identifiable, Codable, Sendable, Equatable {
     public let provider: String
     public let amountUSD: Double?
     public let lastPolledAt: Date
+    public let kind: BalanceKind
+    /// The provider's cumulative usage figure, when it reports one alongside the amount.
+    public let usageUSD: Double?
 
-    public init(provider: String, amountUSD: Double?, lastPolledAt: Date) {
+    public init(
+        provider: String,
+        amountUSD: Double?,
+        lastPolledAt: Date,
+        kind: BalanceKind = .wallet,
+        usageUSD: Double? = nil
+    ) {
         self.provider = provider
         self.amountUSD = amountUSD
         self.lastPolledAt = lastPolledAt
+        self.kind = kind
+        self.usageUSD = usageUSD
     }
 
     public var id: String { provider }
@@ -19,6 +39,24 @@ public struct AccountBalance: Identifiable, Codable, Sendable, Equatable {
 
     public var level: BalanceLevel? {
         amountUSD.map(SurgeThresholds.balanceLevel(forUSD:))
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case provider
+        case amountUSD
+        case lastPolledAt
+        case kind
+        case usageUSD
+    }
+
+    /// A snapshot written before the balance kind existed still reads as a wallet balance.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        provider = try container.decode(String.self, forKey: .provider)
+        amountUSD = try container.decodeIfPresent(Double.self, forKey: .amountUSD)
+        lastPolledAt = try container.decode(Date.self, forKey: .lastPolledAt)
+        kind = try container.decodeIfPresent(BalanceKind.self, forKey: .kind) ?? .wallet
+        usageUSD = try container.decodeIfPresent(Double.self, forKey: .usageUSD)
     }
 }
 

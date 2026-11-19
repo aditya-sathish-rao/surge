@@ -54,6 +54,26 @@ struct AgentRowPresentationTests {
         #expect(presentation.accessibilityLabel.contains("Working. Context 42 percent."))
     }
 
+    @Test func anAgentWhoseModelCannotBePricedSaysCostUnavailable() {
+        let agent = UITestFixtures.agent(
+            provider: "deepseek",
+            modelName: "mystery-model",
+            contextTokens: 0,
+            window: 0,
+            costSource: nil
+        )
+        let presentation = AgentRowPresentation(
+            agent: agent,
+            workspaceName: "surge-widget",
+            now: UITestFixtures.now
+        )
+
+        #expect(presentation.modelName == "Mystery Model")
+        #expect(presentation.fuse.state == .unknown)
+        #expect(presentation.accessibilityLabel.contains("Mystery Model"))
+        #expect(presentation.accessibilityLabel.contains("Cost unavailable"))
+    }
+
     @Test func trailingTextUsesTheStateWordAndTimer() {
         let stalled = UITestFixtures.agent(status: .stalled(since: UITestFixtures.now.addingTimeInterval(-194)))
         let waiting = UITestFixtures.agent(status: .waitingForYou)

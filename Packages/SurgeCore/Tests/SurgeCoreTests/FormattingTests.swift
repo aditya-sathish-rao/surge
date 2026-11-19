@@ -56,9 +56,18 @@ struct FormattingTests {
         #expect(SurgeFormatting.balanceLabel(unavailable) == "Balance unavailable")
     }
 
-    @Test func menuBarReadoutMatchesThePRDExample() {
+    @Test func menuBarReadoutKeepsTheLabelWithTheNumber() {
         #expect(
-            SurgeFormatting.menuBarReadout(orchestrators: 1, workers: 2, spendUSD: 1.42) == "1 Orch, 2 Workers, $1.42")
-        #expect(SurgeFormatting.menuBarReadout(orchestrators: 2, workers: 1, spendUSD: 0) == "2 Orchs, 1 Worker, $0.00")
+            SurgeFormatting.menuBarReadout(
+                orchestrators: 1,
+                workers: 2,
+                spend: SpendFigure(amountUSD: 1.42, source: .estimated)
+            ) == "1 Orch, 2 Workers, $1.42 est.")
+        #expect(
+            SurgeFormatting.menuBarReadout(
+                orchestrators: 2,
+                workers: 1,
+                spend: SpendFigure(amountUSD: 0, source: .estimated)
+            ) == "2 Orchs, 1 Worker, $0.00 est.")
     }
 }
