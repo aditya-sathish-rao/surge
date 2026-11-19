@@ -49,6 +49,10 @@ struct PiSessionReader: TranscriptFileReader {
     private var model: String?
     private var projectPath: String?
 
+    init(pricing: PricingTable) {
+        self.pricing = pricing
+    }
+
     mutating func ingest(line: Data, at date: Date) -> SourceEntry {
         guard let record = try? JSONDecoder().decode(PiSessionRecord.self, from: line) else {
             return SourceEntry()
