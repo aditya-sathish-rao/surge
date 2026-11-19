@@ -1,0 +1,97 @@
+import Foundation
+import SurgeCore
+import Testing
+
+@testable import SurgeUI
+
+struct BalancesTests {
+    @Test func availableBalanceShowsTheAmount() {
+        let presentation = BalancePresentation(
+            balance: AccountBalance(provider: "deepseek", amountUSD: 12.40, lastPolledAt: UITestFixtures.now)
+        )
+
+        #expect(presentation.provider == .deepseek)
+        #expect(presentation.providerName == "DeepSeek")
+        #expect(presentation.amountText == "$12.40")
+        #expect(presentation.qualifier == nil)
+        #expect(presentation.level == .normal)
+        #expect(presentation.isUnavailable == false)
+        #expect(presentation.accessibilityLabel == "DeepSeek, $12.40")
+    }
+
+    @Test func lowBalanceAddsTheLowWord() {
+        let presentation = BalancePresentation(
+            balance: AccountBalance(provider: "openrouter", amountUSD: 3.20, lastPolledAt: UITestFixtures.now)
+        )
+
+        #expect(presentation.amountText == "$3.20")
+        #expect(presentation.qualifier == "Low")
+        #expect(presentation.level == .low)
+        #expect(presentation.accessibilityLabel == "OpenRouter, $3.20, low")
+    }
+
+    @Test func emptyBalanceAddsTheEmptyWord() {
+        let presentation = BalancePresentation(
+            balance: AccountBalance(provider: "openrouter", amountUSD: 0.20, lastPolledAt: UITestFixtures.now)
+        )
+
+        #expect(presentation.qualifier == "Empty")
+        #expect(presentation.level == .empty)
+        #expect(presentation.accessibilityLabel == "OpenRouter, $0.20, empty")
+    }
+
+    @Test func missingEndpointSaysBalanceUnavailable() {
+        let presentation = BalancePresentation(
+            balance: AccountBalance(provider: "anthropic", amountUSD: nil, lastPolledAt: UITestFixtures.now)
+        )
+
+        #expect(presentation.amountText == "Balance unavailable")
+        #expect(presentation.qualifier == nil)
+        #expect(presentation.level == nil)
+        #expect(presentation.isUnavailable)
+        #expect(presentation.accessibilityLabel == "Anthropic, balance unavailable")
+    }
+
+    @Test func fixtureBalancesCoverAllThreeCases() {
+        let presentations = SurgeFixtures.balances.map(BalancePresentation.init)
+
+        #expect(presentations.map(\.amountText) == ["Balance unavailable", "$12.40", "$3.20"])
+        #expect(presentations.map(\.qualifier) == [nil, nil, "Low"])
+    }
+
+    @Test func freshnessCaptionReadsLikeTheDesign() {
+        let now = UITestFixtures.now
+
+        #expect(
+            BalanceFreshness.caption(lastPolledAt: now.addingTimeInterval(-12), now: now)
+                == "// updated 12s ago"
+        )
+        #expect(
+            BalanceFreshness.caption(lastPolledAt: now.addingTimeInterval(-95), now: now)
+                == "// updated 1m 35s ago"
+        )
+        #expect(
+            BalanceFreshness.caption(lastPolledAt: now.addingTimeInterval(-3_900), now: now)
+                == "// updated 1h 5m ago"
+        )
+        #expect(BalanceFreshness.caption(lastPolledAt: nil, now: now) == "// not polled yet")
+    }
+
+    @Test func theNewestPollDrivesTheCaption() {
+        let now = UITestFixtures.now
+        let balances = [
+            AccountBalance(provider: "deepseek", amountUSD: 12.40, lastPolledAt: now.addingTimeInterval(-90)),
+            AccountBalance(provider: "openrouter", amountUSD: 3.20, lastPolledAt: now.addingTimeInterval(-10)),
+        ]
+
+        #expect(BalanceFreshness.lastPolledAt(in: balances) == now.addingTimeInterval(-10))
+        #expect(BalanceFreshness.lastPolledAt(in: []) == nil)
+    }
+
+    @Test func aFuturePollNeverShowsNegativeTime() {
+        #expect(
+            BalanceFreshness.caption(lastPolledAt: UITestFixtures.now.addingTimeInterval(30), now: UITestFixtures.now)
+                == "// updated 0s ago"
+        )
+    }
+}
