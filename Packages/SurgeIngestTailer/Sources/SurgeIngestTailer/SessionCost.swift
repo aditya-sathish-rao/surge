@@ -23,7 +23,8 @@ public struct SessionCost: Codable, Sendable, Equatable {
     public let provider: String
     /// Sum of the turns whose cost the provider itself reported. Nil when there were none.
     public let providerReportedUSD: Double?
-    /// The harness's own running total for the session, when it writes one.
+    /// The harness's own figure for the session: a sum of its per-turn amounts when it writes one,
+    /// or its running total when that is all it writes.
     public let harnessReportedUSD: Double?
     /// Sum of the turns the tailer priced from its pricing table. Nil when there were none.
     public let locallyEstimatedUSD: Double?
@@ -74,6 +75,8 @@ struct SessionCostAccumulator: Equatable {
         switch cost {
         case .providerReported(let amount):
             providerReportedUSD = (providerReportedUSD ?? 0) + amount
+        case .harnessReported(let amount):
+            harnessReportedUSD = (harnessReportedUSD ?? 0) + amount
         case .locallyEstimated(let amount):
             locallyEstimatedUSD = (locallyEstimatedUSD ?? 0) + amount
         case .unavailable:

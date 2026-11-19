@@ -12,14 +12,26 @@ struct SourceFile {
     let fileNumber: UInt64?
 }
 
-/// The only record of a turn's cost: billed by the provider, or priced from the local table.
+/// The only record of a turn's cost: billed by the provider, computed by the harness, or priced
+/// from the local table.
 ///
 /// A harness's own running total is not a per-turn cost, so it travels beside the turn as
 /// `harnessCumulativeCostUSD` rather than as a case here.
 enum TurnCost: Equatable {
     case providerReported(Double)
+    case harnessReported(Double)
     case locallyEstimated(Double)
     case unavailable
+
+    var providerReportedUSD: Double? {
+        guard case .providerReported(let amount) = self else { return nil }
+        return amount
+    }
+
+    var harnessReportedUSD: Double? {
+        guard case .harnessReported(let amount) = self else { return nil }
+        return amount
+    }
 }
 
 /// The numbers and metadata of one turn, already named the way the event names them.
@@ -62,6 +74,9 @@ struct SourceTurn {
 /// What one transcript line adds to the running state of its file.
 struct SourceEntry {
     let projectPath: String?
+    /// The provider family that bills this session, when the record names one. It is never the
+    /// harness name: a harness can be billed by more than one account.
+    let provider: String?
     let turn: SourceTurn?
     /// The record's id, indexed so a sidechain turn can find the session it belongs to.
     let messageUUID: String?
@@ -72,12 +87,14 @@ struct SourceEntry {
 
     init(
         projectPath: String? = nil,
+        provider: String? = nil,
         turn: SourceTurn? = nil,
         messageUUID: String? = nil,
         parentUUID: String? = nil,
         harnessVersion: String? = nil
     ) {
         self.projectPath = projectPath
+        self.provider = provider
         self.turn = turn
         self.messageUUID = messageUUID
         self.parentUUID = parentUUID

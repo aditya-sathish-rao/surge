@@ -62,6 +62,11 @@ public struct TurnAppended: Codable, Sendable, Equatable {
     /// store books only the increase. Claude Code's `totalCostUSD` is this figure, and it is not
     /// the bill when the session is routed to a different provider.
     public let harnessReportedCostUSD: Double?
+    /// The amount the provider billed for this turn, when the record carried one.
+    public let turnProviderReportedUSD: Double?
+    /// The amount the harness itself computed for this turn, when the record carried one. pi writes
+    /// this on every message, so a turn the local price table cannot price is still not free.
+    public let turnHarnessReportedUSD: Double?
 
     public init(
         sessionID: String,
@@ -72,7 +77,9 @@ public struct TurnAppended: Codable, Sendable, Equatable {
         currentContextTokens: Int,
         occurredAt: Date,
         eventID: String? = nil,
-        harnessReportedCostUSD: Double? = nil
+        harnessReportedCostUSD: Double? = nil,
+        turnProviderReportedUSD: Double? = nil,
+        turnHarnessReportedUSD: Double? = nil
     ) {
         self.sessionID = sessionID
         self.modelName = modelName
@@ -83,6 +90,8 @@ public struct TurnAppended: Codable, Sendable, Equatable {
         self.occurredAt = occurredAt
         self.eventID = eventID
         self.harnessReportedCostUSD = harnessReportedCostUSD
+        self.turnProviderReportedUSD = turnProviderReportedUSD
+        self.turnHarnessReportedUSD = turnHarnessReportedUSD
     }
 }
 

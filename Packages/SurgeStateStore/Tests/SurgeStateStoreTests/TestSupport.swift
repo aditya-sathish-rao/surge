@@ -176,7 +176,9 @@ enum StoreFixture {
         context: Int = 0,
         at offset: TimeInterval,
         eventID: String? = nil,
-        harnessReportedCostUSD: Double? = nil
+        harnessReportedCostUSD: Double? = nil,
+        turnProviderReportedUSD: Double? = nil,
+        turnHarnessReportedUSD: Double? = nil
     ) -> TurnAppended {
         TurnAppended(
             sessionID: sessionID,
@@ -187,7 +189,9 @@ enum StoreFixture {
             currentContextTokens: context,
             occurredAt: date(offset),
             eventID: eventID,
-            harnessReportedCostUSD: harnessReportedCostUSD
+            harnessReportedCostUSD: harnessReportedCostUSD,
+            turnProviderReportedUSD: turnProviderReportedUSD,
+            turnHarnessReportedUSD: turnHarnessReportedUSD
         )
     }
 

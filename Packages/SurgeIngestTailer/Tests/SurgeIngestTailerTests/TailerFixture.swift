@@ -175,6 +175,8 @@ enum TranscriptFixtures {
 /// One assistant turn in the shape pi writes, with metadata and numbers only.
 struct PiTurnFixture {
     var model: String? = "claude-sonnet-5-5"
+    /// The provider family pi names on the message. Nil leaves the field out.
+    var provider: String? = "anthropic"
     var input = 0
     var output = 0
     var cacheRead = 0
@@ -232,13 +234,15 @@ enum PiSessionFixtures {
         var message: [String: Any] = [
             "role": "assistant",
             "content": [["type": "text", "text": turn.content]],
-            "provider": "anthropic",
             "usage": usage,
             "stopReason": "stop",
             "timestamp": 1_794_996_000_000,
         ]
         if let model = turn.model {
             message["model"] = model
+        }
+        if let provider = turn.provider {
+            message["provider"] = provider
         }
         return try line([
             "type": "message",

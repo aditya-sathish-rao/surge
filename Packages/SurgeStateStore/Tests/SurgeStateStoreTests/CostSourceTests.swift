@@ -100,9 +100,79 @@ struct CostSourceTests {
         let agent = try #require(agents(in: tree).first)
         #expect(agent.estimatedCostUSD >= 0)
         #expect(agent.costSource == .estimated)
-        // Only the local estimate for those tokens remains. No 20 dollar top-up was booked as
-        // negative spend, and no derived figure came from it.
+        // The tokens were spent before the top-up, so the window's own figure stays. No 20 dollar
+        // top-up is booked as negative spend, and no derived figure comes from it.
+        #expect(agent.estimatedCostUSD > 0.0005)
         #expect(agents(in: tree).allSatisfy { $0.estimatedCostUSD < 0.01 })
+    }
+
+    @Test func aHarnessReportedTurnPriceIsBookedWithItsSourceAndFamily() async throws {
+        let clock = TestClock(StoreFixture.referenceDate)
+        let pipelines = StoreFixture.pipelines(clock: clock)
+        let session = "session-pi"
+        await pipelines.store.apply(
+            .sessionAppeared(
+                StoreFixture.session(
+                    session,
+                    model: "deepseek-flash",
+                    provider: "deepseek",
+                    harness: HarnessIdentity(kind: .piAgent, sessionID: session, transport: .jsonl)
+                )
+            )
+        )
+        // The local table does not know this model, so the only figure is the harness's own.
+        await pipelines.store.apply(
+            .turnAppended(
+                StoreFixture.turn(
+                    session,
+                    model: "deepseek-flash",
+                    input: 100,
+                    output: 20,
+                    at: 1,
+                    turnHarnessReportedUSD: 0.0014
+                )
+            )
+        )
+
+        let agent = try #require(agents(in: await pipelines.store.tree).first)
+        #expect(agent.costSource == .harnessReported)
+        #expect(abs(agent.estimatedCostUSD - 0.0014) < 0.000_000_001)
+        // The row is grouped by the family that bills it, and the harness keeps its own field.
+        #expect(agent.provider == "deepseek")
+        #expect(agent.harness?.kind == .piAgent)
+    }
+
+    @Test func aHarnessNameInTheProviderSlotNeverReachesTheRow() async throws {
+        let clock = TestClock(StoreFixture.referenceDate)
+        let pipelines = StoreFixture.pipelines(clock: clock)
+        let session = "session-pi"
+        // A source that names itself in the provider slot is still grouped by the account that pays.
+        await pipelines.store.apply(
+            .sessionAppeared(
+                StoreFixture.session(
+                    session,
+                    model: "deepseek-flash",
+                    provider: "pi",
+                    harness: HarnessIdentity(kind: .piAgent, sessionID: session, transport: .jsonl)
+                )
+            )
+        )
+        await pipelines.store.apply(
+            .turnAppended(
+                StoreFixture.turn(
+                    session,
+                    model: "deepseek-flash",
+                    input: 100,
+                    at: 1,
+                    turnHarnessReportedUSD: 0.0014
+                )
+            )
+        )
+
+        let agent = try #require(agents(in: await pipelines.store.tree).first)
+        #expect(agent.billingAccount?.id == "deepseek")
+        #expect(agent.provider == "deepseek")
+        #expect(agent.harness?.kind == .piAgent)
     }
 
     @Test func anUnknownModelReportsCostUnavailableWithItsID() async throws {

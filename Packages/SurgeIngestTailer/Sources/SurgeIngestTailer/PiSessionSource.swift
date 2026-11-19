@@ -3,7 +3,9 @@ import SurgeCore
 
 /// Tails pi session transcripts, one JSONL file per session.
 struct PiSessionAdapter: TranscriptSourceAdapter {
-    static let provider = "pi"
+    /// pi writes the provider that bills each message on the message itself, so there is no
+    /// single provider to declare for the source. The reader supplies it per session.
+    static let provider = ""
 
     static let capabilities = SourceCapabilities(
         transport: .appendOnlyJSONLFile,
@@ -97,6 +99,7 @@ struct PiSessionReader: TranscriptFileReader {
         let cacheWriteTokens = usage.cacheWrite ?? 0
         return SourceEntry(
             projectPath: projectPath,
+            provider: message.provider.flatMap { $0.isEmpty ? nil : $0 },
             turn: SourceTurn(
                 model: modelName,
                 inputTokens: inputTokens,
@@ -123,9 +126,11 @@ struct PiSessionReader: TranscriptFileReader {
         cacheHitTokens: Int
     ) -> TurnCost {
         if let reported, let total = reported.total {
+            // `totalFromProvider` marks the amount the provider billed. Without it the amount is
+            // pi's own figure for the turn, which is the harness's number, not a local estimate.
             return reported.totalFromProvider == true
                 ? .providerReported(total)
-                : .locallyEstimated(total)
+                : .harnessReported(total)
         }
         let estimate = pricing.estimatedCostUSD(
             forModel: modelName,
@@ -159,6 +164,8 @@ struct PiSessionRecord: Decodable {
 
 struct PiMessage: Decodable {
     let role: String?
+    /// The provider family that billed this message, for example `deepseek`.
+    let provider: String?
     let model: String?
     let usage: PiUsage?
     /// A Unix timestamp in milliseconds.

@@ -142,30 +142,6 @@ public actor TranscriptTailer: SessionTailing {
         updateWatchers(discovered, now: now)
     }
 
-    private func read(_ file: SourceFile, from adapter: any TranscriptSourceAdapter, now: Date) {
-        var state = files[file.path] ?? makeState(for: file, from: adapter, now: now)
-        if let previous = state.fileNumber, let current = file.fileNumber, previous != current {
-            // The file was replaced, so the saved offset points into a different file.
-            state.offset = 0
-            state.pending = Data()
-        }
-        if let current = file.fileNumber {
-            state.fileNumber = current
-        }
-        if file.size < state.offset {
-            // The file was truncated; read it again from the start.
-            state.offset = 0
-            state.pending = Data()
-        }
-        if file.size > state.offset, let data = read(from: file.url, offset: state.offset) {
-            state.offset += UInt64(data.count)
-            state.lastActivity = now
-            state.pending.append(data)
-            drain(&state, now: now)
-        }
-        files[file.path] = state
-    }
-
     private func makeState(
         for file: SourceFile,
         from adapter: any TranscriptSourceAdapter,
@@ -218,6 +194,9 @@ public actor TranscriptTailer: SessionTailing {
         if let projectPath = entry.projectPath {
             state.projectPath = projectPath
         }
+        if let provider = entry.provider {
+            state.provider = provider
+        }
         if let version = entry.harnessVersion, state.harnessVersion == nil {
             state.harnessVersion = version
         }
@@ -255,7 +234,9 @@ public actor TranscriptTailer: SessionTailing {
                     currentContextTokens: turn.currentContextTokens,
                     occurredAt: occurredAt,
                     eventID: turn.eventID,
-                    harnessReportedCostUSD: turn.harnessCumulativeCostUSD
+                    harnessReportedCostUSD: turn.harnessCumulativeCostUSD,
+                    turnProviderReportedUSD: turn.cost.providerReportedUSD,
+                    turnHarnessReportedUSD: turn.cost.harnessReportedUSD
                 )
             )
         )
@@ -308,6 +289,32 @@ public actor TranscriptTailer: SessionTailing {
 }
 
 extension TranscriptTailer {
+    /// Reads the bytes that arrived since the last look, holding an unterminated line for the next
+    /// write instead of parsing half of it.
+    func read(_ file: SourceFile, from adapter: any TranscriptSourceAdapter, now: Date) {
+        var state = files[file.path] ?? makeState(for: file, from: adapter, now: now)
+        if let previous = state.fileNumber, let current = file.fileNumber, previous != current {
+            // The file was replaced, so the saved offset points into a different file.
+            state.offset = 0
+            state.pending = Data()
+        }
+        if let current = file.fileNumber {
+            state.fileNumber = current
+        }
+        if file.size < state.offset {
+            // The file was truncated; read it again from the start.
+            state.offset = 0
+            state.pending = Data()
+        }
+        if file.size > state.offset, let data = read(from: file.url, offset: state.offset) {
+            state.offset += UInt64(data.count)
+            state.lastActivity = now
+            state.pending.append(data)
+            drain(&state, now: now)
+        }
+        files[file.path] = state
+    }
+
     /// Offsets to hand to a new tailer so it resumes from the same bytes.
     public func checkpoints() -> [TailerCheckpoint] {
         files.keys.sorted().compactMap { path in

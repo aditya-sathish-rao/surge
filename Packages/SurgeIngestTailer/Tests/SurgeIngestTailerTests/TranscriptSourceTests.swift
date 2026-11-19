@@ -44,7 +44,7 @@ private struct MetadataOnlyReader: TranscriptFileReader {
     let tailer = TranscriptTailer()
     let sources = tailer.sources
     #expect(sources.map(\.kind) == [.claudeCode, .piAgent])
-    #expect(sources.map(\.provider) == ["anthropic", "pi"])
+    #expect(sources.map(\.provider) == ["anthropic", ""])
 
     let claude = sources[0].capabilities
     #expect(claude.transport == .appendOnlyJSONLFile)
