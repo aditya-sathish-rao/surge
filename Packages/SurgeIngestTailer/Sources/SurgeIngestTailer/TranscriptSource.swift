@@ -1,9 +1,28 @@
 import Foundation
+import SurgeCore
 
 /// A harness whose transcripts the tailer can read.
 public enum TranscriptSourceKind: String, Codable, Sendable, CaseIterable {
     case claudeCode = "claude-code"
     case piAgent = "pi"
+}
+
+/// How a source's kind and transport are named on a session's harness identity.
+extension TranscriptSourceKind {
+    public var harnessKind: HarnessIdentity.Kind {
+        switch self {
+        case .claudeCode: .claudeCode
+        case .piAgent: .piAgent
+        }
+    }
+}
+
+extension SourceTransport {
+    public var harnessTransport: HarnessIdentity.Transport {
+        switch self {
+        case .appendOnlyJSONLFile: .jsonl
+        }
+    }
 }
 
 /// The way a source delivers its records.

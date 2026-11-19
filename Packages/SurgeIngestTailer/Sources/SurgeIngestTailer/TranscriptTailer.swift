@@ -1,23 +1,6 @@
 import Foundation
 import SurgeCore
 
-/// What the tailer keeps for one transcript file.
-private struct FileState {
-    let sourceKind: TranscriptSourceKind
-    let provider: String
-    let sessionID: String
-    let parentSessionID: String?
-    var projectPath: String?
-    var reader: any TranscriptFileReader
-    var offset: UInt64
-    var pending: Data
-    var fileNumber: UInt64?
-    var appeared: Bool
-    var ended: Bool
-    var lastActivity: Date
-    var cost: SessionCostAccumulator
-}
-
 /// Tails the configured transcript sources and publishes immutable events.
 ///
 /// Each source adapter says where its files live, what a line means and what it can supply. One
@@ -35,12 +18,16 @@ public actor TranscriptTailer: SessionTailing {
 
     private let adapters: [any TranscriptSourceAdapter]
     private let infoByKind: [TranscriptSourceKind: TranscriptSourceInfo]
-    private let pricing: PricingTable
+    let pricing: PricingTable
     private let clock: @Sendable () -> Date
-    private let sink = TailerEventSink()
+    let sink = TailerEventSink()
     private var initialOffsets: [String: UInt64]
-    private var files: [String: FileState] = [:]
+    var files: [String: FileState] = [:]
     private var watchers: [String: TranscriptFileWatcher] = [:]
+    /// Record id to the session that wrote it, so a sidechain turn can name its parent session.
+    var messageOwners: [String: String] = [:]
+    /// Session id to the parent turn it named before that turn's session was known.
+    var unresolvedParentUUIDs: [String: String] = [:]
     private var sweepTask: Task<Void, Never>?
     private var isMonitoring = false
 
@@ -144,16 +131,15 @@ public actor TranscriptTailer: SessionTailing {
         }
 
         for path in Array(files.keys) where !seen.contains(path) {
-            files.removeValue(forKey: path)
+            if let removed = files.removeValue(forKey: path) {
+                forgetIndexEntries(forSession: removed.sessionID)
+            }
             cancelWatcher(for: path)
         }
 
+        resolvePendingParents()
         endIdleSessions(now: now)
         updateWatchers(discovered, now: now)
-    }
-
-    private func state(forSession sessionID: String) -> FileState? {
-        files.keys.sorted().compactMap { files[$0] }.first { $0.sessionID == sessionID }
     }
 
     private func read(_ file: SourceFile, from adapter: any TranscriptSourceAdapter, now: Date) {
@@ -188,9 +174,12 @@ public actor TranscriptTailer: SessionTailing {
         FileState(
             sourceKind: adapter.info.kind,
             provider: adapter.info.provider,
+            transport: adapter.info.capabilities.transport.harnessTransport,
             sessionID: file.sessionID,
             parentSessionID: file.parentSessionID,
             projectPath: nil,
+            harnessVersion: nil,
+            lastModelName: nil,
             reader: adapter.makeReader(),
             offset: initialOffset(for: file, now: now),
             pending: Data(),
@@ -198,7 +187,8 @@ public actor TranscriptTailer: SessionTailing {
             appeared: false,
             ended: false,
             lastActivity: min(file.modificationDate, now),
-            cost: SessionCostAccumulator()
+            cost: SessionCostAccumulator(),
+            seenEventIDs: []
         )
     }
 
@@ -210,17 +200,6 @@ public actor TranscriptTailer: SessionTailing {
         }
         let age = now.timeIntervalSince(file.modificationDate)
         return age < TailerDefaults.sessionEndedIdleSeconds ? 0 : file.size
-    }
-
-    private func read(from url: URL, offset: UInt64) -> Data? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? handle.close() }
-        do {
-            try handle.seek(toOffset: offset)
-            return try handle.readToEnd()
-        } catch {
-            return nil
-        }
     }
 
     /// Parses complete lines and keeps the unterminated remainder for the next write.
@@ -239,27 +218,32 @@ public actor TranscriptTailer: SessionTailing {
         if let projectPath = entry.projectPath {
             state.projectPath = projectPath
         }
+        if let version = entry.harnessVersion, state.harnessVersion == nil {
+            state.harnessVersion = version
+        }
+        if let uuid = entry.messageUUID {
+            messageOwners[uuid] = state.sessionID
+        }
+        if let parentUUID = entry.parentUUID {
+            unresolvedParentUUIDs[state.sessionID] = parentUUID
+        }
         guard let turn = entry.turn else { return }
+        // A repeated record id is the same write seen twice: branched, resumed or sub-agent work
+        // can repeat one. Its tokens and its cost are already counted.
+        if let eventID = turn.eventID, !state.seenEventIDs.insert(eventID).inserted {
+            return
+        }
 
         let occurredAt = turn.occurredAt ?? now
+        state.lastModelName = turn.model
         // A session that went quiet and then wrote again is a new appearance for the state store.
         if !state.appeared || state.ended {
             state.appeared = true
             state.ended = false
-            sink.publish(
-                .sessionAppeared(
-                    SessionDescriptor(
-                        id: state.sessionID,
-                        projectPath: state.projectPath ?? "",
-                        provider: state.provider,
-                        modelName: turn.model,
-                        maxContextWindow: pricing.contextWindow(forModel: turn.model) ?? 0,
-                        occurredAt: occurredAt
-                    )
-                )
-            )
+            publishAppearance(of: state, modelName: turn.model, at: occurredAt)
         }
         state.cost.add(turn.cost)
+        state.cost.recordHarnessTotal(turn.harnessCumulativeCostUSD)
         sink.publish(
             .turnAppended(
                 TurnAppended(
@@ -269,7 +253,9 @@ public actor TranscriptTailer: SessionTailing {
                     outputTokens: turn.outputTokens,
                     cacheHitTokens: turn.cacheHitTokens,
                     currentContextTokens: turn.currentContextTokens,
-                    occurredAt: occurredAt
+                    occurredAt: occurredAt,
+                    eventID: turn.eventID,
+                    harnessReportedCostUSD: turn.harnessCumulativeCostUSD
                 )
             )
         )

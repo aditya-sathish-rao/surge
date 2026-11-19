@@ -53,10 +53,16 @@ public struct AgentNode: Identifiable, Codable, Sendable, Equatable {
     public var maxContextWindow: Int
     /// The accumulated cost amount. `costSource` says where it came from and whether it exists.
     public var estimatedCostUSD: Double
-    /// Actual, derived or estimated. Nil when the model cannot be priced, in which case the amount
-    /// is meaningless and must be shown as unavailable rather than as zero.
+    /// Provider reported, harness reported, balance derived, quota window or estimated. Nil when
+    /// nothing could price the work, in which case the amount is meaningless and must be shown as
+    /// unavailable rather than as zero. `costAuthority` names that case explicitly.
     public var costSource: CostSource?
     public var lastTokenAt: Date
+    /// The harness that produced this agent's records, when the source can name one.
+    public var harness: HarnessIdentity?
+    /// The account that pays for this agent's work, once one is resolved. Nil when the match was
+    /// ambiguous or nothing matched, which is why the figure is not attributed to an account.
+    public var billingAccount: BillingAccount?
 
     public init(
         id: String,
@@ -70,7 +76,9 @@ public struct AgentNode: Identifiable, Codable, Sendable, Equatable {
         maxContextWindow: Int = 0,
         estimatedCostUSD: Double = 0,
         costSource: CostSource? = .estimated,
-        lastTokenAt: Date
+        lastTokenAt: Date,
+        harness: HarnessIdentity? = nil,
+        billingAccount: BillingAccount? = nil
     ) {
         self.id = id
         self.provider = provider
@@ -84,7 +92,12 @@ public struct AgentNode: Identifiable, Codable, Sendable, Equatable {
         self.estimatedCostUSD = estimatedCostUSD
         self.costSource = costSource
         self.lastTokenAt = lastTokenAt
+        self.harness = harness
+        self.billingAccount = billingAccount
     }
+
+    /// The same vocabulary with the unavailable case spelled out.
+    public var costAuthority: CostSource { costSource ?? .unavailable }
 
     /// The number and its label together, or nil when the cost is unavailable.
     public var spendFigure: SpendFigure? {
@@ -104,6 +117,8 @@ public struct AgentNode: Identifiable, Codable, Sendable, Equatable {
         case estimatedCostUSD
         case costSource
         case lastTokenAt
+        case harness
+        case billingAccount
     }
 
     /// A snapshot written before the cost source existed still reads as a local estimate.
@@ -121,6 +136,8 @@ public struct AgentNode: Identifiable, Codable, Sendable, Equatable {
         estimatedCostUSD = try container.decode(Double.self, forKey: .estimatedCostUSD)
         costSource = try container.decodeIfPresent(CostSource.self, forKey: .costSource) ?? .estimated
         lastTokenAt = try container.decode(Date.self, forKey: .lastTokenAt)
+        harness = try container.decodeIfPresent(HarnessIdentity.self, forKey: .harness)
+        billingAccount = try container.decodeIfPresent(BillingAccount.self, forKey: .billingAccount)
     }
 
     public var contextUsageRatio: Double {

@@ -13,51 +13,98 @@ public struct BalancePresentation: Sendable, Equatable {
     /// Why the balance is missing, in plain English. Nil when having no amount is expected, such
     /// as a provider that exposes no balance endpoint.
     public let reasonText: String?
+    /// The burn and reset line a subscription window shows instead of a balance.
+    public let quotaText: String?
+    /// How much of the window has been used. Nil for a wallet.
+    public let quotaFraction: Double?
     public let accessibilityLabel: String
 
-    public init(balance: AccountBalance) {
+    public init(balance: AccountBalance, now: Date = Date()) {
         provider = balance.providerKind
+        if let window = balance.quotaWindow {
+            let quota = Self.quota(window, now: now)
+            providerName = window.window.title
+            amountText = quota.amountText
+            quotaText = quota.detail
+            quotaFraction = window.fractionUsed
+            level = quota.level
+            isUnavailable = false
+            usageText = nil
+            reasonText = nil
+            accessibilityLabel = quota.accessibilityLabel
+            return
+        }
         providerName = balance.providerKind.name
         isUnavailable = !balance.isAvailable
         usageText = balance.usageUSD.map { "used \(SurgeFormatting.cost($0))" }
+        quotaText = nil
+        quotaFraction = nil
 
         guard let amount = balance.amountUSD else {
             level = nil
-            let reason = balance.unavailableReason
-            reasonText = reason?.text
-            if balance.kind == .keyLimit, reason == nil {
-                // The key has no cap, which is not the same as an empty account.
-                amountText = "No key limit"
-                accessibilityLabel = Self.keyLimitAccessibility(providerName, usage: balance.usageUSD)
-            } else {
-                amountText = "Balance unavailable"
-                if let reason {
-                    accessibilityLabel = "\(providerName), balance unavailable. \(reason.text)."
-                } else {
-                    accessibilityLabel = "\(providerName), balance unavailable"
-                }
-            }
+            reasonText = balance.unavailableReason?.text
+            amountText =
+                balance.kind == .keyLimit && balance.unavailableReason == nil
+                ? "No key limit"
+                : "Balance unavailable"
+            accessibilityLabel = Self.unavailableAccessibility(for: balance)
             return
         }
 
         reasonText = nil
         let level = SurgeThresholds.balanceLevel(forUSD: amount)
         self.level = level
-        let kindWord = balance.kind == .keyLimit ? "key cap" : "balance"
         amountText =
-            balance.kind == .keyLimit
-            ? "\(SurgeFormatting.cost(amount)) key cap"
-            : SurgeFormatting.cost(amount)
-        let usageWord = balance.usageUSD.map { ", used \(SurgeFormatting.cost($0))" } ?? ""
-        accessibilityLabel =
-            switch level {
-            case .normal:
-                "\(providerName), \(kindWord) \(SurgeFormatting.cost(amount))\(usageWord)"
-            case .low:
-                "\(providerName), \(kindWord) \(SurgeFormatting.cost(amount)), low\(usageWord)"
-            case .empty:
-                "\(providerName), \(kindWord) \(SurgeFormatting.cost(amount)), empty\(usageWord)"
-            }
+            balance.kind == .keyLimit ? "\(SurgeFormatting.cost(amount)) key cap" : SurgeFormatting.cost(amount)
+        accessibilityLabel = Self.amountAccessibility(for: balance, level: level)
+    }
+
+    private struct QuotaText {
+        let amountText: String
+        let detail: String
+        let level: BalanceLevel
+        let accessibilityLabel: String
+    }
+
+    private static func quota(_ window: QuotaWindowState, now: Date) -> QuotaText {
+        let remaining = window.remainingSeconds(at: now)
+        let reset =
+            remaining <= 0 ? "resets now" : "resets in \(SurgeFormatting.duration(since: now, now: window.resetsAt))"
+        // Headroom is what runs out, so the balance thresholds applied to it keep Low and Empty
+        // meaning the same thing as on a wallet.
+        let level: BalanceLevel =
+            window.isOverWindow ? .empty : (window.percentUsed >= 80 ? .low : .normal)
+        let amount =
+            "\(SurgeFormatting.cost(window.usedUSD)) of \(SurgeFormatting.cost(window.window.limitUSD))"
+        let percent = "\(window.percentUsed)% used · \(reset)"
+        let spoken =
+            "\(window.window.title), quota window, \(amount) used, "
+            + "\(window.percentUsed) percent of the window, \(reset)"
+        return QuotaText(amountText: amount, detail: percent, level: level, accessibilityLabel: spoken)
+    }
+
+    private static func unavailableAccessibility(for balance: AccountBalance) -> String {
+        let name = balance.providerKind.name
+        if balance.kind == .keyLimit, let reason = balance.unavailableReason {
+            return "\(name), balance unavailable. \(reason.text)."
+        }
+        if balance.kind == .keyLimit, balance.unavailableReason == nil {
+            return keyLimitAccessibility(name, usage: balance.usageUSD)
+        }
+        guard let reason = balance.unavailableReason else { return "\(name), balance unavailable" }
+        return "\(name), balance unavailable. \(reason.text)."
+    }
+
+    private static func amountAccessibility(for balance: AccountBalance, level: BalanceLevel) -> String {
+        let name = balance.providerKind.name
+        let amount = SurgeFormatting.cost(balance.amountUSD ?? 0)
+        let word = balance.kind == .keyLimit ? "key cap" : "balance"
+        let usage = balance.usageUSD.map { ", used \(SurgeFormatting.cost($0))" } ?? ""
+        switch level {
+        case .normal: return "\(name), \(word) \(amount)\(usage)"
+        case .low: return "\(name), \(word) \(amount), low\(usage)"
+        case .empty: return "\(name), \(word) \(amount), empty\(usage)"
+        }
     }
 
     private static func keyLimitAccessibility(_ providerName: String, usage: Double?) -> String {
@@ -69,7 +116,7 @@ public struct BalancePresentation: Sendable, Equatable {
     public var qualifier: String? {
         switch level {
         case .low: "Low"
-        case .empty: "Empty"
+        case .empty: quotaFraction == nil ? "Empty" : "At limit"
         case .normal, nil: nil
         }
     }
@@ -114,7 +161,7 @@ public struct BalancesCard: View {
             VStack(alignment: .leading, spacing: SurgeSpacing.space2) {
                 SurgeSectionLabel("Account balances")
                 ForEach(balances) { balance in
-                    row(BalancePresentation(balance: balance))
+                    row(BalancePresentation(balance: balance, now: now))
                 }
                 caption
             }
@@ -139,6 +186,12 @@ public struct BalancesCard: View {
                     Text(reasonText)
                         .font(SurgeUIFont.balanceReason)
                         .foregroundStyle(SurgeInk.secondary(contrastLevel))
+                }
+                if let quotaText = presentation.quotaText {
+                    Text(quotaText)
+                        .font(SurgeUIFont.balanceReason)
+                        .foregroundStyle(SurgeInk.secondary(contrastLevel))
+                        .monospacedDigit()
                 }
             }
             Spacer(minLength: SurgeSpacing.space2)

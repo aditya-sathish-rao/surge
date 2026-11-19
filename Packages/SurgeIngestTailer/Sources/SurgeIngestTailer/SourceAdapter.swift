@@ -13,6 +13,9 @@ struct SourceFile {
 }
 
 /// The only record of a turn's cost: billed by the provider, or priced from the local table.
+///
+/// A harness's own running total is not a per-turn cost, so it travels beside the turn as
+/// `harnessCumulativeCostUSD` rather than as a case here.
 enum TurnCost: Equatable {
     case providerReported(Double)
     case locallyEstimated(Double)
@@ -28,16 +31,57 @@ struct SourceTurn {
     let currentContextTokens: Int
     let occurredAt: Date?
     let cost: TurnCost
+    /// The record's own id, so a repeated write cannot be counted twice.
+    let eventID: String?
+    /// The harness's cumulative cost for the session at this turn, when it reports one.
+    let harnessCumulativeCostUSD: Double?
+
+    init(
+        model: String,
+        inputTokens: Int,
+        outputTokens: Int,
+        cacheHitTokens: Int,
+        currentContextTokens: Int,
+        occurredAt: Date?,
+        cost: TurnCost,
+        eventID: String? = nil,
+        harnessCumulativeCostUSD: Double? = nil
+    ) {
+        self.model = model
+        self.inputTokens = inputTokens
+        self.outputTokens = outputTokens
+        self.cacheHitTokens = cacheHitTokens
+        self.currentContextTokens = currentContextTokens
+        self.occurredAt = occurredAt
+        self.cost = cost
+        self.eventID = eventID
+        self.harnessCumulativeCostUSD = harnessCumulativeCostUSD
+    }
 }
 
 /// What one transcript line adds to the running state of its file.
 struct SourceEntry {
     let projectPath: String?
     let turn: SourceTurn?
+    /// The record's id, indexed so a sidechain turn can find the session it belongs to.
+    let messageUUID: String?
+    /// The turn that spawned a sidechain record, when the source marks one.
+    let parentUUID: String?
+    /// The harness version the record names, when it names one.
+    let harnessVersion: String?
 
-    init(projectPath: String? = nil, turn: SourceTurn? = nil) {
+    init(
+        projectPath: String? = nil,
+        turn: SourceTurn? = nil,
+        messageUUID: String? = nil,
+        parentUUID: String? = nil,
+        harnessVersion: String? = nil
+    ) {
         self.projectPath = projectPath
         self.turn = turn
+        self.messageUUID = messageUUID
+        self.parentUUID = parentUUID
+        self.harnessVersion = harnessVersion
     }
 }
 

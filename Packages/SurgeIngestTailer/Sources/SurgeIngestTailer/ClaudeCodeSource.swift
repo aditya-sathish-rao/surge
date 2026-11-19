@@ -39,18 +39,32 @@ struct ClaudeCodeAdapter: TranscriptSourceAdapter {
 }
 
 /// One Claude Code line at a time. Claude repeats the model and the working directory on every
-/// assistant line, so the reader keeps no state between lines.
+/// assistant line, so the reader's only carried state is the harness's running cost total.
 struct ClaudeCodeReader: TranscriptFileReader {
     let pricing: PricingTable
+    private var harnessCumulativeUSD: Double?
 
-    func ingest(line: Data, at date: Date) -> SourceEntry {
+    init(pricing: PricingTable) {
+        self.pricing = pricing
+    }
+
+    mutating func ingest(line: Data, at date: Date) -> SourceEntry {
         guard let record = try? JSONDecoder().decode(TranscriptRecord.self, from: line) else {
             return SourceEntry()
         }
         let entry = record.parse()
-        guard let turn = entry.turn else {
-            return SourceEntry(projectPath: entry.projectPath)
+        if let harnessCost = entry.harnessCostUSD {
+            harnessCumulativeUSD = harnessCost
         }
+        let metadata = SourceEntry(
+            projectPath: entry.projectPath,
+            messageUUID: record.uuid,
+            // Only a sidechain turn names the top-level turn that spawned it. Every other turn's
+            // `parentUuid` is simply the previous message.
+            parentUUID: record.isSidechain == true ? record.parentUuid : nil,
+            harnessVersion: record.version
+        )
+        guard let turn = entry.turn else { return metadata }
         let cost =
             pricing.estimatedCostUSD(
                 forModel: turn.model,
@@ -67,8 +81,13 @@ struct ClaudeCodeReader: TranscriptFileReader {
                 cacheHitTokens: turn.cacheReadTokens,
                 currentContextTokens: turn.inputTokens + turn.cacheReadTokens + turn.cacheCreationTokens,
                 occurredAt: turn.occurredAt,
-                cost: cost
-            )
+                cost: cost,
+                eventID: record.uuid,
+                harnessCumulativeCostUSD: harnessCumulativeUSD
+            ),
+            messageUUID: record.uuid,
+            parentUUID: record.isSidechain == true ? record.parentUuid : nil,
+            harnessVersion: record.version
         )
     }
 }

@@ -13,12 +13,31 @@ struct TranscriptRecord: Decodable {
     let cwd: String?
     let timestamp: String?
     let message: Message?
+    /// The id of this record, used to de-duplicate repeated writes.
+    let uuid: String?
+    /// The record this one follows. A sidechain turn points at the turn that spawned it.
+    let parentUuid: String?
+    /// True for a turn written by a sub-agent rather than the top-level session.
+    let isSidechain: Bool?
+    let sessionId: String?
+    let version: String?
+    /// The harness's own running total for the session, written on a `cost-state` record.
+    let totalCostUSD: Double?
+    /// True when the harness could not price every turn it counted, so its total is not trusted.
+    let hasUnknownModelCost: Bool?
 
     enum CodingKeys: String, CodingKey {
         case type
         case cwd
         case timestamp
         case message
+        case uuid
+        case parentUuid
+        case isSidechain
+        case sessionId
+        case version
+        case totalCostUSD
+        case hasUnknownModelCost
     }
 
     struct Message: Decodable {
@@ -30,6 +49,8 @@ struct TranscriptRecord: Decodable {
     struct ParsedEntry {
         let projectPath: String?
         let turn: ParsedTurn?
+        /// The harness's running cost when this line carried one.
+        let harnessCostUSD: Double?
     }
 
     struct ParsedTurn {
@@ -42,6 +63,12 @@ struct TranscriptRecord: Decodable {
     }
 
     func parse() -> ParsedEntry {
+        if type == "cost-state" {
+            // The harness's own running total. It is computed at Anthropic list prices, so it is
+            // only the bill when Anthropic is the account that pays.
+            let reported = hasUnknownModelCost == true ? nil : totalCostUSD
+            return ParsedEntry(projectPath: workingDirectory, turn: nil, harnessCostUSD: reported)
+        }
         guard
             type == "assistant",
             let message,
@@ -51,7 +78,7 @@ struct TranscriptRecord: Decodable {
             !model.isEmpty,
             model != TranscriptRecord.syntheticModel
         else {
-            return ParsedEntry(projectPath: workingDirectory, turn: nil)
+            return ParsedEntry(projectPath: workingDirectory, turn: nil, harnessCostUSD: nil)
         }
         return ParsedEntry(
             projectPath: workingDirectory,
@@ -62,7 +89,8 @@ struct TranscriptRecord: Decodable {
                 cacheReadTokens: usage.cacheReadInputTokens ?? 0,
                 cacheCreationTokens: usage.cacheCreationInputTokens ?? 0,
                 occurredAt: timestamp.flatMap(TranscriptTimestamp.parse)
-            )
+            ),
+            harnessCostUSD: nil
         )
     }
 

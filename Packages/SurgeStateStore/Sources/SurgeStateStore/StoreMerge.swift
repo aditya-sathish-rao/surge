@@ -27,9 +27,19 @@ extension SurgeStateStore {
                 maxContextWindow: descriptor.maxContextWindow,
                 lastTokenAt: descriptor.occurredAt,
                 doneAt: nil,
-                parentSessionID: nil,
-                isTopLevel: true
+                parentSessionID: descriptor.parentSessionID,
+                isTopLevel: descriptor.parentSessionID == nil,
+                harness: descriptor.harness
             )
+        if let harness = descriptor.harness {
+            agent.harness = harness
+        }
+        // A sub-agent transcript names its parent, so it is never a peer of the session that
+        // spawned it even when it was tailed first.
+        if let parent = descriptor.parentSessionID, parent != agent.id {
+            agent.parentSessionID = parent
+            agent.isTopLevel = false
+        }
         let contextWindow =
             descriptor.maxContextWindow > 0
             ? descriptor.maxContextWindow
@@ -46,9 +56,20 @@ extension SurgeStateStore {
             removeAgent(id: descriptor.id)
         }
         replace(agent, at: descriptor.projectPath)
+        resolveAttributionIfNeeded(forAgentID: descriptor.id)
     }
 
     func merge(turn: TurnAppended) {
+        guard let rootLocation = treeRoot(forAgentID: turn.sessionID),
+            agentLocation(forID: turn.sessionID) != nil
+        else { return }
+        // One record id is one turn, counted once for the whole session tree.
+        if let eventID = turn.eventID {
+            var root = rootLocation.agent
+            guard root.seenEventIDs.insert(eventID).inserted else { return }
+            replace(root, at: rootLocation.projectPath)
+        }
+        resolveAttributionIfNeeded(forAgentID: turn.sessionID)
         guard let location = agentLocation(forID: turn.sessionID) else { return }
         var agent = location.agent
         agent.inputTokens += turn.inputTokens
@@ -59,7 +80,8 @@ extension SurgeStateStore {
             modelName: turn.modelName,
             inputTokens: turn.inputTokens,
             outputTokens: turn.outputTokens,
-            cacheHitTokens: turn.cacheHitTokens
+            cacheHitTokens: turn.cacheHitTokens,
+            harnessReportedCumulativeUSD: turn.harnessReportedCostUSD
         )
         agent.recordActivity(
             at: turn.occurredAt,
@@ -99,7 +121,11 @@ extension SurgeStateStore {
                 lastTokenAt: descriptor.occurredAt,
                 doneAt: nil,
                 parentSessionID: descriptor.parentSessionID,
-                isTopLevel: false
+                isTopLevel: false,
+                // A proxy worker is not a harness by name: it is whatever program pointed its base
+                // URL at Surge. Saying so keeps inference out of the record.
+                harness: descriptor.harness
+                    ?? HarnessIdentity(kind: .generic, sessionID: descriptor.id, transport: .proxy)
             )
         if descriptor.occurredAt >= agent.phaseChangedAt {
             agent.parentSessionID = descriptor.parentSessionID
@@ -116,11 +142,14 @@ extension SurgeStateStore {
             removeAgent(id: descriptor.id)
         }
         replace(agent, at: descriptor.projectPath)
+        resolveAttributionIfNeeded(forAgentID: descriptor.id)
     }
 
     func merge(usage: ProxyUsage) {
         guard let location = agentLocation(forID: usage.workerID) else { return }
-        var agent = location.agent
+        resolveAttributionIfNeeded(forAgentID: usage.workerID)
+        guard let refreshed = agentLocation(forID: usage.workerID) else { return }
+        var agent = refreshed.agent
         agent.inputTokens += usage.inputTokens
         agent.outputTokens += usage.outputTokens
         agent.cacheHitTokens += usage.cacheHitTokens
@@ -130,7 +159,7 @@ extension SurgeStateStore {
             inputTokens: usage.inputTokens,
             outputTokens: usage.outputTokens,
             cacheHitTokens: usage.cacheHitTokens,
-            reportedCostUSD: usage.reportedCostUSD
+            providerReportedUSD: usage.reportedCostUSD
         )
         agent.recordActivity(
             at: usage.occurredAt,
@@ -140,69 +169,6 @@ extension SurgeStateStore {
             maxContextWindow: priceBook.contextWindow(forModel: usage.modelName)
         )
         replace(agent, at: location.projectPath)
-    }
-
-    func merge(balance update: BalanceUpdate) {
-        switch update {
-        case .loaded(let balance):
-            let previous = balanceRecords[balance.provider]?.amountUSD
-            balanceRecords[balance.provider] = balance
-            closeBalanceWindow(for: balance.provider, previousUSD: previous, currentUSD: balance.amountUSD)
-        case .unavailable(let provider, let lastPolledAt):
-            balanceRecords[provider] = AccountBalance(
-                provider: provider,
-                amountUSD: nil,
-                lastPolledAt: lastPolledAt
-            )
-        }
-    }
-
-    /// Turns a balance movement into spend where the provider reports one, strongest source only
-    /// for DeepSeek today. The window closes on every successful poll, and a top-up only closes it:
-    /// an increase is money added, never negative spend.
-    private func closeBalanceWindow(for provider: String, previousUSD: Double?, currentUSD: Double?) {
-        let providerKind = Provider(providerID: provider) ?? .other
-        var dropUSD: Double?
-        let movement = SpendAttribution.movement(
-            provider: providerKind,
-            previousUSD: previousUSD,
-            currentUSD: currentUSD
-        )
-        if providerKind == .deepseek, let movement, movement.hasSpend {
-            dropUSD = movement.dropUSD
-        }
-
-        var agents: [(path: String, agent: AgentRecord)] = []
-        for path in workspaceRecords.keys.sorted() {
-            guard let workspace = workspaceRecords[path] else { continue }
-            for id in workspace.agents.keys.sorted() {
-                guard let agent = workspace.agents[id],
-                    Provider(providerID: agent.provider) == providerKind
-                else { continue }
-                agents.append((path, agent))
-            }
-        }
-        guard agents.isEmpty == false else { return }
-
-        var tokensByAgent: [String: Int] = [:]
-        for entry in agents where entry.agent.tokensSinceBalancePoll > 0 {
-            tokensByAgent[entry.agent.id] = entry.agent.tokensSinceBalancePoll
-        }
-        let shares = dropUSD.map { SpendAttribution.shares(dropUSD: $0, tokensByAgent: tokensByAgent) } ?? [:]
-
-        for entry in agents {
-            var agent = entry.agent
-            if let share = shares[agent.id] {
-                // The provider's own number replaces the local estimate for this window, so the
-                // same tokens are not counted once as an estimate and again as derived spend.
-                agent.costBySource.removeEstimate(agent.pendingEstimateUSD)
-                agent.costBySource.add(share, source: .derived)
-                agent.unpricedTokens = 0
-            }
-            agent.pendingEstimateUSD = 0
-            agent.tokensSinceBalancePoll = 0
-            replace(agent, at: entry.path)
-        }
     }
 
     func merge(status: AgentStatus, for agentID: String, at occurredAt: Date) {
@@ -239,38 +205,6 @@ extension SurgeStateStore {
         }
     }
 
-    /// Books one turn at the strongest source available for it. A provider-reported cost is
-    /// authoritative; otherwise the local table prices it, or the turn is marked unpriced so the
-    /// UI can say the cost is unavailable rather than zero.
-    private func book(
-        cost agent: inout AgentRecord,
-        modelName: String,
-        inputTokens: Int,
-        outputTokens: Int,
-        cacheHitTokens: Int,
-        reportedCostUSD: Double? = nil
-    ) {
-        let tokens = inputTokens + outputTokens + cacheHitTokens
-        if let reportedCostUSD {
-            agent.costBySource.add(reportedCostUSD, source: .actual)
-        } else if let estimate = priceBook.estimatedCostUSD(
-            forModel: modelName,
-            inputTokens: inputTokens,
-            outputTokens: outputTokens,
-            cacheHitTokens: cacheHitTokens
-        ) {
-            agent.costBySource.add(estimate, source: .estimated)
-            if Provider(providerID: agent.provider) == .deepseek {
-                agent.pendingEstimateUSD += estimate
-            }
-        } else if tokens > 0 {
-            agent.unpricedTokens += tokens
-        }
-        if Provider(providerID: agent.provider) == .deepseek {
-            agent.tokensSinceBalancePoll += tokens
-        }
-    }
-
     func agentLocation(forID id: String) -> AgentLocation? {
         for projectPath in workspaceRecords.keys.sorted() {
             if let agent = workspaceRecords[projectPath]?.agents[id] {
@@ -294,5 +228,17 @@ extension SurgeStateStore {
             else { continue }
             workspaceRecords[projectPath] = workspace.agents.isEmpty ? nil : workspace
         }
+    }
+
+    func allAgentLocations() -> [AgentLocation] {
+        var locations: [AgentLocation] = []
+        for projectPath in workspaceRecords.keys.sorted() {
+            guard let workspace = workspaceRecords[projectPath] else { continue }
+            for id in workspace.agents.keys.sorted() {
+                guard let agent = workspace.agents[id] else { continue }
+                locations.append(AgentLocation(projectPath: projectPath, agent: agent))
+            }
+        }
+        return locations
     }
 }

@@ -61,6 +61,9 @@ public enum SurgeFormatting {
     }
 
     public static func balanceLabel(_ balance: AccountBalance) -> String {
+        if let window = balance.quotaWindow {
+            return "\(window.percentUsed)% of window"
+        }
         guard let amount = balance.amountUSD else { return "Balance unavailable" }
         switch SurgeThresholds.balanceLevel(forUSD: amount) {
         case .normal:

@@ -4,9 +4,11 @@ import Foundation
 public enum CostProvenance: String, Codable, Sendable, Equatable {
     /// The provider billed this amount and the transcript recorded it.
     case providerReported
+    /// The harness reported its own running total for the session.
+    case harnessReported
     /// The tailer priced the tokens from its own pricing table.
     case locallyEstimated
-    /// Some turns were billed and some were estimated. The two sums stay separate.
+    /// Turns from more than one provenance. Their sums stay separate.
     case mixed
     /// No turn in the session carried a cost the tailer could trust.
     case unavailable
@@ -21,6 +23,8 @@ public struct SessionCost: Codable, Sendable, Equatable {
     public let provider: String
     /// Sum of the turns whose cost the provider itself reported. Nil when there were none.
     public let providerReportedUSD: Double?
+    /// The harness's own running total for the session, when it writes one.
+    public let harnessReportedUSD: Double?
     /// Sum of the turns the tailer priced from its pricing table. Nil when there were none.
     public let locallyEstimatedUSD: Double?
     /// Turns for which neither the source nor the pricing table supplied a cost.
@@ -31,28 +35,38 @@ public struct SessionCost: Codable, Sendable, Equatable {
         provider: String,
         providerReportedUSD: Double?,
         locallyEstimatedUSD: Double?,
-        unavailableTurnCount: Int
+        unavailableTurnCount: Int,
+        harnessReportedUSD: Double? = nil
     ) {
         self.sessionID = sessionID
         self.provider = provider
         self.providerReportedUSD = providerReportedUSD
+        self.harnessReportedUSD = harnessReportedUSD
         self.locallyEstimatedUSD = locallyEstimatedUSD
         self.unavailableTurnCount = unavailableTurnCount
     }
 
     public var provenance: CostProvenance {
-        switch (providerReportedUSD != nil, locallyEstimatedUSD != nil) {
-        case (true, true): .mixed
-        case (true, false): .providerReported
-        case (false, true): .locallyEstimated
-        case (false, false): .unavailable
+        let sources = [
+            providerReportedUSD != nil,
+            harnessReportedUSD != nil,
+            locallyEstimatedUSD != nil,
+        ].filter { $0 }.count
+        switch sources {
+        case 0: return .unavailable
+        case 1:
+            if providerReportedUSD != nil { return .providerReported }
+            if harnessReportedUSD != nil { return .harnessReported }
+            return .locallyEstimated
+        default: return .mixed
         }
     }
 }
 
-/// Adds up the turns of one session, keeping billed and estimated amounts apart.
+/// Adds up the turns of one session, keeping billed, harness-reported and estimated amounts apart.
 struct SessionCostAccumulator: Equatable {
     private(set) var providerReportedUSD: Double?
+    private(set) var harnessReportedUSD: Double?
     private(set) var locallyEstimatedUSD: Double?
     private(set) var unavailableTurnCount = 0
 
@@ -67,13 +81,20 @@ struct SessionCostAccumulator: Equatable {
         }
     }
 
+    /// The harness reports a running total rather than a per-turn amount, so the latest one wins.
+    mutating func recordHarnessTotal(_ total: Double?) {
+        guard let total else { return }
+        harnessReportedUSD = total
+    }
+
     func summary(sessionID: String, provider: String) -> SessionCost {
         SessionCost(
             sessionID: sessionID,
             provider: provider,
             providerReportedUSD: providerReportedUSD,
             locallyEstimatedUSD: locallyEstimatedUSD,
-            unavailableTurnCount: unavailableTurnCount
+            unavailableTurnCount: unavailableTurnCount,
+            harnessReportedUSD: harnessReportedUSD
         )
     }
 }

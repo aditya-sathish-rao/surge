@@ -24,6 +24,8 @@ final class SurgeSettings {
         static let emptyBalance = "emptyBalanceThreshold"
         static let shortcut = "globalShortcut"
         static let mutedAgents = "mutedAgentIDs"
+        static let quotaWindows = "billingQuotaWindows"
+        static let bindings = "billingBindings"
     }
 
     private let defaults: UserDefaults
@@ -53,9 +55,25 @@ final class SurgeSettings {
     var mutedAgentIDs: Set<String> {
         didSet { defaults.set(Array(mutedAgentIDs).sorted(), forKey: Key.mutedAgents) }
     }
+    /// A subscription account and the window it reports instead of a balance, keyed by account id.
+    var quotaWindows: [String: QuotaWindow] {
+        didSet {
+            persist(quotaWindows.isEmpty ? nil : quotaWindows, forKey: Key.quotaWindows)
+            onBillingChanged?()
+        }
+    }
+    /// The user's explicit statement that a harness and model belong to one account.
+    var bindings: [BillingBinding] {
+        didSet {
+            persist(bindings.isEmpty ? nil : bindings, forKey: Key.bindings)
+            onBillingChanged?()
+        }
+    }
 
     /// Set by the app model so recording a shortcut re-registers it immediately.
     var onShortcutChanged: (() -> Void)?
+    /// Set by the app model so a billing change re-resolves the sessions already on screen.
+    var onBillingChanged: (() -> Void)?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -66,6 +84,8 @@ final class SurgeSettings {
         emptyBalanceThreshold = defaults.object(forKey: Key.emptyBalance) as? Double ?? Self.defaultEmptyBalanceUSD
         shortcut = Self.decode(GlobalShortcut.self, from: defaults, key: Key.shortcut)
         mutedAgentIDs = Set(defaults.stringArray(forKey: Key.mutedAgents) ?? [])
+        quotaWindows = Self.decode([String: QuotaWindow].self, from: defaults, key: Key.quotaWindows) ?? [:]
+        bindings = Self.decode([BillingBinding].self, from: defaults, key: Key.bindings) ?? []
         hasLoaded = true
     }
 
@@ -81,6 +101,69 @@ final class SurgeSettings {
             mutedAgentIDs: mutedAgentIDs,
             stallTimeSensitive: notifyStallTimeSensitive,
             completionPassive: notifyCompletionPassive
+        )
+    }
+
+    /// The accounts whose row comes from a window instead of a polled balance.
+    var quotaAccountIDs: Set<String> { Set(quotaWindows.keys) }
+
+    func quotaWindow(forAccount id: String) -> QuotaWindow? { quotaWindows[id] }
+
+    func setQuotaWindow(_ window: QuotaWindow?, forAccount id: String) {
+        if let window {
+            quotaWindows[id] = window
+        } else {
+            quotaWindows[id] = nil
+        }
+    }
+
+    func addBinding(harness: HarnessIdentity.Kind, modelPrefix: String, accountID: String) {
+        let trimmed = modelPrefix.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else { return }
+        let binding = BillingBinding(harness: harness, modelPrefix: trimmed, accountID: accountID)
+        bindings.removeAll { $0.id == binding.id }
+        bindings.append(binding)
+    }
+
+    func removeBinding(id: String) {
+        bindings.removeAll { $0.id == id }
+    }
+
+    /// The accounts, bindings and windows the state store resolves against.
+    ///
+    /// When a Claude subscription is configured it takes over the `anthropic` account, and the API
+    /// account stays available as `anthropic-api`. Both match `claude-*`, which is exactly the
+    /// case the user has to settle with a binding rather than have Surge guess.
+    func billingConfiguration() -> BillingConfiguration {
+        var accounts = BillingAccount.standard
+        var windows: [String: QuotaWindow] = [:]
+        if let window = quotaWindows["anthropic"] {
+            accounts.removeAll { $0.id == "anthropic" }
+            accounts.append(
+                BillingAccount(
+                    id: "anthropic",
+                    family: .anthropic,
+                    credentialRef: "anthropic",
+                    authority: .quotaWindow,
+                    modelPrefixes: ["claude"]
+                )
+            )
+            accounts.append(
+                BillingAccount(
+                    id: "anthropic-api",
+                    family: .anthropic,
+                    credentialRef: "anthropic",
+                    authority: .harnessReported,
+                    modelPrefixes: ["claude"]
+                )
+            )
+            windows["anthropic"] = window
+        }
+        let knownIDs = Set(accounts.map(\.id))
+        return BillingConfiguration(
+            accounts: accounts,
+            bindings: bindings.filter { knownIDs.contains($0.accountID) },
+            quotaWindows: windows
         )
     }
 

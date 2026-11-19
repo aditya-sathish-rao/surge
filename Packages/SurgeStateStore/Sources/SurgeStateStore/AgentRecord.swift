@@ -26,17 +26,33 @@ struct AgentRecord: Equatable {
     var maxContextWindow: Int
     /// The accumulated amount, kept apart by source so a total can carry the right label.
     var costBySource = SpendBySource()
-    /// Estimated cost booked since this provider's last successful balance poll. A derived figure
-    /// replaces it, so the same tokens are never counted twice.
-    var pendingEstimateUSD = 0.0
+    /// Spend booked since this agent's account last reported a balance movement, kept by source so
+    /// a derived figure replaces exactly what the window charged instead of adding to it.
+    var windowSpend = SpendBySource()
     /// Tokens seen since that poll, used to share a balance drop between the agents that spent it.
     var tokensSinceBalancePoll = 0
     /// Tokens whose model could not be priced. While this is non-zero the cost is unavailable.
     var unpricedTokens = 0
+    /// The harness's last reported running total, so only the increase is booked.
+    var lastHarnessCumulativeUSD: Double?
     var lastTokenAt: Date
     var doneAt: Date?
     var parentSessionID: String?
-    let isTopLevel: Bool
+    var isTopLevel: Bool
+    var harness: HarnessIdentity?
+    /// Which account pays for this agent's work, once one is resolved. A sub-agent inherits its
+    /// tree's attribution rather than resolving its own model. Nil means not resolved yet.
+    var attribution: BillingAttribution?
+    /// Record ids already counted, kept on the tree root so a repeated id from any branch or
+    /// sub-agent cannot add the same tokens twice.
+    var seenEventIDs: Set<String> = []
+
+    var billingAccount: BillingAccount? { attribution?.account }
+
+    var balanceDerivedAccountID: String? {
+        guard let account = billingAccount, account.authority == .balanceDerived else { return nil }
+        return account.id
+    }
 
     /// Working tokens go quiet for the model's threshold. Waiting for you is never stalled, and
     /// an explicit state like Compacting or Idle is reported as it is.
@@ -96,14 +112,23 @@ struct AgentRecord: Equatable {
             maxContextWindow: maxContextWindow,
             estimatedCostUSD: costBySource.totalUSD,
             costSource: costSource,
-            lastTokenAt: lastTokenAt
+            lastTokenAt: lastTokenAt,
+            harness: harness,
+            billingAccount: billingAccount
         )
     }
 
     /// Nil while any turn on this agent was priced by nothing at all, so the UI says unavailable
     /// instead of showing a zero that looks like free.
+    ///
+    /// An account whose balance moves is the exception: once a movement has priced a window, the
+    /// agent keeps that real figure while the next window's tokens wait for the next poll. Those
+    /// tokens are pending, not unpriceable, so they never turn the figure back to unavailable.
     var costSource: CostSource? {
-        unpricedTokens > 0 ? nil : (costBySource.source ?? .estimated)
+        if costBySource.balanceDerivedUSD > 0 {
+            return costBySource.source
+        }
+        return unpricedTokens > 0 ? nil : (costBySource.source ?? .estimated)
     }
 }
 
