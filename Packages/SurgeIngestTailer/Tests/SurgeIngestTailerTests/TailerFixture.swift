@@ -2,16 +2,22 @@ import Foundation
 import SurgeCore
 import os
 
-/// A temporary `~/.claude/projects` stand-in. Every test owns one and never touches the real one.
+/// A temporary `~/.claude/projects` stand-in and a temporary `~/.pi/agent/sessions` stand-in.
+/// Every test owns both and never touches the real ones.
 struct TailerFixture {
     let root: URL
+    let piRoot: URL
     let clock: TestClock
 
     init(clock: TestClock = TestClock(start: Date())) throws {
-        let root = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appending(path: "surge-tailer-\(UUID().uuidString)", directoryHint: .isDirectory)
+        let name = "surge-tailer-\(UUID().uuidString)"
+        let temporary = URL(fileURLWithPath: NSTemporaryDirectory())
+        let root = temporary.appending(path: name, directoryHint: .isDirectory)
+        let piRoot = temporary.appending(path: "\(name)-pi", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: piRoot, withIntermediateDirectories: true)
         self.root = root
+        self.piRoot = piRoot
         self.clock = clock
     }
 
@@ -25,6 +31,12 @@ struct TailerFixture {
             .appending(path: parent, directoryHint: .isDirectory)
             .appending(path: "subagents", directoryHint: .isDirectory)
             .appending(path: "agent-\(agent).jsonl")
+    }
+
+    /// `~/.pi/agent/sessions/--<path>--/<timestamp>_<session-id>.jsonl`.
+    func piSessionURL(session: String, project: String = "--Users-dev-workspace--") -> URL {
+        piRoot.appending(path: project, directoryHint: .isDirectory)
+            .appending(path: "2026-11-18T10-00-00-000Z_\(session).jsonl")
     }
 
     func append(_ text: String, to url: URL) throws {
@@ -61,6 +73,7 @@ struct TailerFixture {
 
     func remove() {
         try? FileManager.default.removeItem(at: root)
+        try? FileManager.default.removeItem(at: piRoot)
     }
 }
 
@@ -193,5 +206,177 @@ func ended(in events: [TailerEvent]) -> [String] {
             return sessionID
         }
         return nil
+    }
+}
+
+/// One assistant turn in the shape pi writes, with metadata and numbers only.
+struct PiTurnFixture {
+    var model: String? = "claude-sonnet-5-5"
+    var input = 0
+    var output = 0
+    var cacheRead = 0
+    var cacheWrite = 0
+    var reasoning: Int?
+    /// Nil leaves the cost object out, as an older session with no priced provider does.
+    var costTotal: Double?
+    /// Nil leaves `totalFromProvider` out, which pi treats as its own estimate.
+    var totalFromProvider: Bool?
+    var timestamp = "2026-11-18T10:00:00.000Z"
+    var content = "assistant text"
+}
+
+enum PiSessionFixtures {
+    static let secondTimestamp = "2026-11-18T10:00:05.000Z"
+
+    static func header(
+        session: String = "session-1",
+        cwd: String = "/Users/dev/workspace",
+        timestamp: String = "2026-11-18T09:59:59.000Z"
+    ) throws -> String {
+        try line([
+            "type": "session",
+            "version": 3,
+            "id": session,
+            "timestamp": timestamp,
+            "cwd": cwd,
+        ])
+    }
+
+    static func turn(_ turn: PiTurnFixture) throws -> String {
+        var usage: [String: Any] = [
+            "input": turn.input,
+            "output": turn.output,
+            "cacheRead": turn.cacheRead,
+            "cacheWrite": turn.cacheWrite,
+            "totalTokens": turn.input + turn.output + turn.cacheRead + turn.cacheWrite,
+        ]
+        if let reasoning = turn.reasoning {
+            usage["reasoning"] = reasoning
+        }
+        if let total = turn.costTotal {
+            var cost: [String: Any] = [
+                "input": 0.0,
+                "output": 0.0,
+                "cacheRead": 0.0,
+                "cacheWrite": 0.0,
+                "total": total,
+            ]
+            if let totalFromProvider = turn.totalFromProvider {
+                cost["totalFromProvider"] = totalFromProvider
+            }
+            usage["cost"] = cost
+        }
+        var message: [String: Any] = [
+            "role": "assistant",
+            "content": [["type": "text", "text": turn.content]],
+            "provider": "anthropic",
+            "usage": usage,
+            "stopReason": "stop",
+            "timestamp": 1_794_996_000_000,
+        ]
+        if let model = turn.model {
+            message["model"] = model
+        }
+        return try line([
+            "type": "message",
+            "id": "b2c3d4e5",
+            "parentId": "a1b2c3d4",
+            "timestamp": turn.timestamp,
+            "message": message,
+        ])
+    }
+
+    static func modelChange(
+        _ modelID: String,
+        timestamp: String = "2026-11-18T10:00:03.000Z"
+    ) throws -> String {
+        try line([
+            "type": "model_change",
+            "id": "d4e5f6g7",
+            "parentId": "c3d4e5f6",
+            "timestamp": timestamp,
+            "provider": "anthropic",
+            "modelId": modelID,
+        ])
+    }
+
+    static func thinkingLevelChange(_ level: String = "high") throws -> String {
+        try line([
+            "type": "thinking_level_change",
+            "id": "e5f6g7h8",
+            "parentId": "d4e5f6g7",
+            "timestamp": "2026-11-18T10:00:04.000Z",
+            "thinkingLevel": level,
+        ])
+    }
+
+    static func custom(customType: String = "my-extension") throws -> String {
+        try line([
+            "type": "custom",
+            "id": "h8i9j0k1",
+            "parentId": "g7h8i9j0",
+            "timestamp": "2026-11-18T10:00:05.000Z",
+            "customType": customType,
+            "data": ["count": 42],
+        ])
+    }
+
+    static func customMessage(customType: String = "my-extension", content: String) throws -> String {
+        try line([
+            "type": "custom_message",
+            "id": "i9j0k1l2",
+            "parentId": "h8i9j0k1",
+            "timestamp": "2026-11-18T10:00:06.000Z",
+            "customType": customType,
+            "content": content,
+            "display": true,
+        ])
+    }
+
+    static func compaction(tokensBefore: Int = 50_000) throws -> String {
+        try line([
+            "type": "compaction",
+            "id": "f6g7h8i9",
+            "parentId": "e5f6g7h8",
+            "timestamp": "2026-11-18T10:00:07.000Z",
+            "summary": "earlier conversation",
+            "firstKeptEntryId": "c3d4e5f6",
+            "tokensBefore": tokensBefore,
+        ])
+    }
+
+    static func usageEntry(
+        kind: String = "cache_warm",
+        cacheRead: Int = 50_000,
+        costTotal: Double = 0.015
+    ) throws -> String {
+        try line([
+            "type": "usage",
+            "id": "f6g7h8i9",
+            "parentId": "e5f6g7h8",
+            "timestamp": "2026-11-18T10:00:08.000Z",
+            "kind": kind,
+            "provider": "anthropic",
+            "model": "claude-sonnet-5-5",
+            "usage": [
+                "input": 0,
+                "output": 0,
+                "cacheRead": cacheRead,
+                "cacheWrite": 0,
+                "totalTokens": cacheRead,
+                "cost": [
+                    "input": 0.0,
+                    "output": 0.0,
+                    "cacheRead": costTotal,
+                    "cacheWrite": 0.0,
+                    "total": costTotal,
+                ],
+            ],
+        ])
+    }
+
+    private static func line(_ record: [String: Any]) throws -> String {
+        let data = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
+        return String(bytes: data, encoding: .utf8) ?? ""
     }
 }

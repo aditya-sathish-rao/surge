@@ -9,7 +9,7 @@ private func makeTailer(
     checkpoints: [TailerCheckpoint] = []
 ) -> TranscriptTailer {
     TranscriptTailer(
-        root: fixture.root,
+        sources: [.claudeCode(root: fixture.root)],
         checkpoints: checkpoints,
         clock: { fixture.clock.now() }
     )
