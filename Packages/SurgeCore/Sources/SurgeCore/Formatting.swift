@@ -101,7 +101,7 @@ public enum SurgeFormatting {
     /// True when the menu bar has a spend figure worth showing. An amount nothing could report is
     /// left out, and so is a zero from a day with no agents running.
     public static func menuBarShowsSpend(agentCount: Int, spend: SpendFigure) -> Bool {
-        spend.source != .unavailable && (agentCount > 0 || spend.amountUSD > 0)
+        spend.source != .unavailable && (agentCount > 0 || Int((spend.amountUSD * 100).rounded()) > 0)
     }
 
     private static func orchestratorField(_ orchestrators: Int) -> String? {

@@ -113,6 +113,12 @@ struct FormattingTests {
             ) == nil)
         #expect(
             SurgeFormatting.menuBarSummary(
+                orchestrators: 0,
+                workers: 0,
+                spend: SpendFigure(amountUSD: 0.004, source: .estimated)
+            ) == nil)
+        #expect(
+            SurgeFormatting.menuBarSummary(
                 orchestrators: 1,
                 workers: 0,
                 spend: SpendFigure(amountUSD: 0, source: .unavailable)
@@ -124,6 +130,11 @@ struct FormattingTests {
             !SurgeFormatting.menuBarShowsSpend(
                 agentCount: 0,
                 spend: SpendFigure(amountUSD: 0, source: .estimated)
+            ))
+        #expect(
+            !SurgeFormatting.menuBarShowsSpend(
+                agentCount: 0,
+                spend: SpendFigure(amountUSD: 0.004, source: .estimated)
             ))
         #expect(
             !SurgeFormatting.menuBarShowsSpend(
