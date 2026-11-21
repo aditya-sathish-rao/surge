@@ -84,5 +84,6 @@ public struct ThroughputChart: View {
         }
         .frame(height: SurgeUIStyle.throughputChartHeight)
         .accessibilityLabel("Throughput over the last 30 minutes")
+        .accessibilityChartDescriptor(ThroughputChartDescriptor(samples: samples))
     }
 }

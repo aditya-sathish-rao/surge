@@ -55,7 +55,7 @@ public struct DailySpendChart: View {
     }
 
     private var visibleDays: [DailySpendPoint] {
-        Array(days.sorted { $0.date < $1.date }.suffix(range.dayCount))
+        ChartAccessibility.visibleDays(days, range: range)
     }
 
     private var todayHeadline: String {
@@ -108,7 +108,10 @@ public struct DailySpendChart: View {
             }
         }
         .frame(height: SurgeUIStyle.spendChartHeight)
-        .accessibilityLabel("Daily spend over \(range.dayCount) days")
+        .accessibilityLabel(ChartAccessibility.spendTitle(range: range))
+        .accessibilityChartDescriptor(
+            DailySpendChartDescriptor(days: visibleDays, range: range, source: source)
+        )
     }
 
     private func isToday(_ day: DailySpendPoint) -> Bool {

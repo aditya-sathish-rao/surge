@@ -40,8 +40,10 @@ public struct PillTabs: View {
             default: break
             }
         }
+        // A tab group rather than a plain container, so VoiceOver announces the three pills as a
+        // tab group and each one as a tab with its position and its selected state.
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Tabs")
+        .accessibilityAddTraits(.isTabBar)
     }
 
     private func tabButton(_ tab: SurgeTab) -> some View {

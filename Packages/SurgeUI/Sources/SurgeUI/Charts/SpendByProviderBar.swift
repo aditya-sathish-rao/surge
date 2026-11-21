@@ -102,6 +102,7 @@ public struct SpendByProviderBar: View {
         .frame(height: SurgeUIStyle.proportionalBarHeight)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(barAccessibilityLabel)
+        .accessibilityChartDescriptor(SpendByProviderChartDescriptor(shares: shares))
     }
 
     private func legendRow(_ share: SpendShare) -> some View {
@@ -126,7 +127,6 @@ public struct SpendByProviderBar: View {
     }
 
     private var barAccessibilityLabel: String {
-        guard !shares.isEmpty else { return "No spend today" }
-        return "Spend by provider today. " + shares.map(\.accessibilityLabel).joined(separator: ". ")
+        ChartAccessibility.shareSummary(shares: shares)
     }
 }
