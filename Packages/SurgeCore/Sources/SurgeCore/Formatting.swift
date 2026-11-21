@@ -116,7 +116,18 @@ public enum SurgeFormatting {
 
     private static func spendField(_ spend: SpendFigure, agentCount: Int) -> String? {
         guard menuBarShowsSpend(agentCount: agentCount, spend: spend) else { return nil }
-        return spend.menuBarText
+        return spend.amountText
+    }
+
+    /// The running agents and anything that needs the user, as one spoken clause. The total count
+    /// is always said when more than one agent runs, and the attention clause appears exactly once.
+    public static func menuBarRunDescription(agentCount: Int, attentionCount: Int) -> String {
+        guard agentCount > 0 else { return "No agents running" }
+        guard attentionCount > 0 else { return agentCount == 1 ? "1 agent" : "\(agentCount) agents" }
+        guard attentionCount > 1 else {
+            return agentCount == 1 ? "1 agent needs you" : "\(agentCount) agents, 1 needs you"
+        }
+        return "\(agentCount) agents, \(attentionCount) need you"
     }
 
     /// The number and its label as one string, or the word unavailable when there is no figure.

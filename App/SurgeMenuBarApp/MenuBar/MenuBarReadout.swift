@@ -53,17 +53,10 @@ struct MenuBarReadout: Equatable {
     /// One sentence for the app, what needs attention and what is running, then today's spend. The
     /// glyph carries no meaning of its own to VoiceOver, so everything the bar shows is in here.
     var accessibilityLabel: String {
-        var sentences = [runDescription, spendDescription].compactMap { $0 }
+        let run = SurgeFormatting.menuBarRunDescription(agentCount: agentCount, attentionCount: attentionCount)
+        var sentences = [run, spendDescription].compactMap { $0 }
         sentences.insert("Surge", at: 0)
         return sentences.joined(separator: ". ") + "."
-    }
-
-    private var runDescription: String? {
-        guard agentCount > 0 else { return "No agents running" }
-        if attentionCount == 1 { return "1 agent needs you" }
-        let agents = agentCount == 1 ? "1 agent" : "\(agentCount) agents"
-        guard needsYou else { return agents }
-        return "\(agents), \(attentionCount) need you"
     }
 
     private var spendDescription: String? {

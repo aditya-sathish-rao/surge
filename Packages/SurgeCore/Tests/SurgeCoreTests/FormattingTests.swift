@@ -141,4 +141,13 @@ struct FormattingTests {
                 spend: SpendFigure(amountUSD: 0, source: .estimated)
             ))
     }
+
+    @Test func menuBarRunDescriptionAlwaysSpeaksTheAgentCountAndOneAttentionClause() {
+        #expect(SurgeFormatting.menuBarRunDescription(agentCount: 1, attentionCount: 1) == "1 agent needs you")
+        #expect(SurgeFormatting.menuBarRunDescription(agentCount: 5, attentionCount: 1) == "5 agents, 1 needs you")
+        #expect(SurgeFormatting.menuBarRunDescription(agentCount: 6, attentionCount: 2) == "6 agents, 2 need you")
+        #expect(SurgeFormatting.menuBarRunDescription(agentCount: 5, attentionCount: 0) == "5 agents")
+        #expect(SurgeFormatting.menuBarRunDescription(agentCount: 1, attentionCount: 0) == "1 agent")
+        #expect(SurgeFormatting.menuBarRunDescription(agentCount: 0, attentionCount: 0) == "No agents running")
+    }
 }

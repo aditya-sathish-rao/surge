@@ -109,12 +109,6 @@ public struct SpendFigure: Codable, Sendable, Equatable {
         "\(amountText) \(source.suffix)"
     }
 
-    /// The amount alone, for the menu bar, where the popover carries the label and says what it
-    /// means. Every surface with room for the label uses `displayText` instead.
-    public var menuBarText: String {
-        amountText
-    }
-
     public var accessibilityText: String {
         "\(amountText), \(source.label.lowercased())"
     }
