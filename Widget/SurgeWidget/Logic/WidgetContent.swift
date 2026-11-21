@@ -55,18 +55,10 @@ public enum WidgetFreshness {
 }
 
 /// The word a widget row shows beside its Fuse: the PRD's state labels, with stalled and idle rows
-/// letting the system timer count for them.
+/// letting the system timer count for them. The words themselves belong to `SurgeFormatting`.
 public enum WidgetStatusWording {
     public static func label(_ status: AgentStatus) -> String {
-        switch status {
-        case .working: "Working"
-        case .waitingForYou: "Waiting for you"
-        case .compacting: "Compacting"
-        case .stalled: "Stalled"
-        case .idle: "Idle"
-        case .done: "Done"
-        case .noSignal: "No signal"
-        }
+        SurgeFormatting.statusWord(status)
     }
 }
 

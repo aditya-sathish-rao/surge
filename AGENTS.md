@@ -13,7 +13,7 @@ Surge is a native macOS 14+ menu bar app and desktop widget that monitors coding
 
 ## Project state and decisions
 
-Current state: the scaffold is done. The Xcode project is generated from `project.yml`, the six Swift packages exist as empty stubs, and the app and widget targets are placeholders that build and run. Real work is split into `tasks/`, one file per work stream. Start with `tasks/README.md` for the order and rules.
+Current state: see the status line in `README.md`, which is the one owner of milestone status. Real work is split into `tasks/`, one file per work stream. Start with `tasks/README.md` for the order and rules.
 
 Decisions already made by the user. Do not reopen them:
 

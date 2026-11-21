@@ -29,6 +29,16 @@ struct FormattingTests {
         #expect(SurgeFormatting.minutesDuration(since: now.addingTimeInterval(-2_520), now: now) == "42m")
     }
 
+    @Test func statusWordsCarryNoElapsedTime() {
+        #expect(SurgeFormatting.statusWord(.working) == "Working")
+        #expect(SurgeFormatting.statusWord(.waitingForYou) == "Waiting for you")
+        #expect(SurgeFormatting.statusWord(.compacting) == "Compacting")
+        #expect(SurgeFormatting.statusWord(.noSignal) == "No signal")
+        #expect(SurgeFormatting.statusWord(.stalled(since: now.addingTimeInterval(-194))) == "Stalled")
+        #expect(SurgeFormatting.statusWord(.idle(since: now.addingTimeInterval(-240))) == "Idle")
+        #expect(SurgeFormatting.statusWord(.done) == "Done")
+    }
+
     @Test func statusLabelsCarryWordsAndElapsedTime() {
         #expect(SurgeFormatting.statusLabel(.working, now: now) == "Working")
         #expect(SurgeFormatting.statusLabel(.waitingForYou, now: now) == "Waiting for you")
