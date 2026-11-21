@@ -95,8 +95,7 @@ struct SmallWidgetView: View {
                 .lineLimit(1)
             WidgetStatusText(
                 status: presentation.status,
-                color: WidgetStyle.statusColor(for: presentation.status, contrast: contrastLevel),
-                label: SurgeFormatting.statusLabel(presentation.status, now: now)
+                color: WidgetStyle.statusColor(for: presentation.status, contrast: contrastLevel)
             )
             .font(WidgetStyle.meta)
             Text(provenance(agent))

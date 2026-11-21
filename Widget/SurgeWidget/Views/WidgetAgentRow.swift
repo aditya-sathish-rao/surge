@@ -7,15 +7,6 @@ import SwiftUI
 struct WidgetStatusText: View {
     let status: AgentStatus
     let color: Color
-    /// The word for a state that has no timer. Rows pass nothing and get the short word; the Small
-    /// widget passes the PRD's full label, because it has the room.
-    var label: String?
-
-    init(status: AgentStatus, color: Color, label: String? = nil) {
-        self.status = status
-        self.color = color
-        self.label = label
-    }
 
     var body: some View {
         text
@@ -38,7 +29,7 @@ struct WidgetStatusText: View {
                 Text(since, style: .timer)
             }
         default:
-            Text(label ?? WidgetStatusWording.label(status))
+            Text(WidgetStatusWording.label(status))
         }
     }
 }
