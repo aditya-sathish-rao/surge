@@ -150,4 +150,13 @@ struct FormattingTests {
         #expect(SurgeFormatting.menuBarRunDescription(agentCount: 1, attentionCount: 0) == "1 agent")
         #expect(SurgeFormatting.menuBarRunDescription(agentCount: 0, attentionCount: 0) == "No agents running")
     }
+
+    @Test func spokenUSDReadsMoneyWithoutPaddedCents() {
+        #expect(SurgeFormatting.spokenUSD(0) == "0 dollars")
+        #expect(SurgeFormatting.spokenUSD(0.01) == "1 cent")
+        #expect(SurgeFormatting.spokenUSD(0.05) == "5 cents")
+        #expect(SurgeFormatting.spokenUSD(1) == "1 dollar")
+        #expect(SurgeFormatting.spokenUSD(16.05) == "16 dollars 5 cents")
+        #expect(SurgeFormatting.spokenUSD(16.91) == "16 dollars 91")
+    }
 }

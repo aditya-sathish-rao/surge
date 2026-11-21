@@ -130,6 +130,22 @@ public enum SurgeFormatting {
         return "\(agentCount) agents, \(attentionCount) need you"
     }
 
+    /// Money the way a person says it: "16 dollars 91", "1 dollar", "50 cents". A cents value
+    /// below ten keeps the word so it is not read as padded digits.
+    public static func spokenUSD(_ amount: Double) -> String {
+        let totalCents = max(Int((amount * 100).rounded()), 0)
+        let dollars = totalCents / 100
+        let cents = totalCents % 100
+        guard dollars > 0 else {
+            guard cents > 0 else { return "0 dollars" }
+            return cents == 1 ? "1 cent" : "\(cents) cents"
+        }
+        let dollarPart = dollars == 1 ? "1 dollar" : "\(dollars) dollars"
+        guard cents > 0 else { return dollarPart }
+        guard cents < 10 else { return "\(dollarPart) \(cents)" }
+        return "\(dollarPart) \(cents) \(cents == 1 ? "cent" : "cents")"
+    }
+
     /// The number and its label as one string, or the word unavailable when there is no figure.
     public static func spend(_ figure: SpendFigure?) -> String {
         figure?.displayText ?? "Cost unavailable"

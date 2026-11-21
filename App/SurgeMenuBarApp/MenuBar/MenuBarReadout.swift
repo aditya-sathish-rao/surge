@@ -61,20 +61,6 @@ struct MenuBarReadout: Equatable {
 
     private var spendDescription: String? {
         guard showsSpend else { return nil }
-        return "\(Self.spokenUSD(spend.amountUSD)) spent today"
-    }
-
-    /// Money the way a person says it: "16 dollars 91", "1 dollar", "50 cents".
-    static func spokenUSD(_ amount: Double) -> String {
-        let totalCents = max(Int((amount * 100).rounded()), 0)
-        let dollars = totalCents / 100
-        let cents = totalCents % 100
-        guard dollars > 0 else {
-            guard cents > 0 else { return "0 dollars" }
-            return cents == 1 ? "1 cent" : "\(cents) cents"
-        }
-        let dollarPart = dollars == 1 ? "1 dollar" : "\(dollars) dollars"
-        guard cents > 0 else { return dollarPart }
-        return "\(dollarPart) \(String(format: "%02d", cents))"
+        return "\(SurgeFormatting.spokenUSD(spend.amountUSD)) spent today"
     }
 }
