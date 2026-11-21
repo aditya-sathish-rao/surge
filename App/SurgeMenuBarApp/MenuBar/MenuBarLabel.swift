@@ -3,22 +3,14 @@ import SwiftUI
 
 /// The menu bar item: a template glyph, the attention triangle when anything needs the user, and
 /// the PRD's short text readout. It never animates; the changing numbers are the signal.
+///
+/// The menu bar is the system's chrome, not the product's content: the type is the menu bar's own
+/// font, which follows the system text size, and the glyph is drawn in the menu bar's template ink.
 struct MenuBarLabel: View {
     let model: AppModel
 
     var body: some View {
-        MenuBarItem(readout: model.readout)
-    }
-}
-
-/// The drawn item, apart from the app behind it, so every state can be rendered on its own.
-///
-/// The menu bar is the system's chrome, not the product's content: the type is the menu bar's own
-/// font, which follows the system text size, and the glyph is drawn in the menu bar's template ink.
-struct MenuBarItem: View {
-    let readout: MenuBarReadout
-
-    var body: some View {
+        let readout = model.readout
         Label {
             if let text = readout.text {
                 Text(text)
