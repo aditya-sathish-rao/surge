@@ -61,13 +61,22 @@ struct FuseGaugeStyle: GaugeStyle {
             let ratio = min(max(presentation.fillRatio ?? 0, 0), 1)
             ZStack(alignment: .leading) {
                 Capsule().fill(SurgeUIStyle.fuseTrack)
-                fill(width: width, ratio: ratio)
-                    .animation(
-                        reduceMotion ? nil : .easeOut(duration: SurgeUIStyle.fuseAnimationDuration),
-                        value: ratio
-                    )
+                if !presentation.isTripped {
+                    Capsule()
+                        .fill(fillColor)
+                        .frame(width: width * ratio, height: height)
+                        .animation(fillAnimation, value: ratio)
+                        .transition(.asymmetric(insertion: fillReveal, removal: .opacity))
+                }
+                if presentation.isTripped {
+                    HatchPattern(color: SurgeColors.alert)
+                        .frame(width: width * ratio, height: height)
+                        .clipShape(Capsule())
+                        .transition(.asymmetric(insertion: .opacity, removal: hatchClear))
+                }
                 notches(width: width, height: height)
             }
+            .animation(tripOrClear, value: presentation.isTripped)
             .frame(width: width, height: height, alignment: .leading)
         }
         .frame(height: height)
@@ -80,21 +89,35 @@ struct FuseGaugeStyle: GaugeStyle {
         }
     }
 
-    @ViewBuilder
-    private func fill(width: CGFloat, ratio: Double) -> some View {
-        if presentation.isTripped {
-            HatchPattern(color: SurgeColors.alert)
-                .frame(width: width * ratio, height: height)
-                .clipShape(Capsule())
-                .transition(.opacity)
-                .animation(
-                    reduceMotion ? nil : .easeOut(duration: SurgeUIStyle.fuseAnimationDuration),
-                    value: presentation.isTripped
-                )
-        } else {
-            Capsule()
-                .fill(fillColor)
-                .frame(width: width * ratio, height: height)
+    /// The fill eases to a new value and does not travel at all when Reduce Motion is on. While
+    /// the Fuse is tripped the fill view is not built, which is what holds it still.
+    private var fillAnimation: Animation? {
+        guard !reduceMotion else { return nil }
+        return .easeOut(duration: SurgeUIStyle.fuseAnimationDuration)
+    }
+
+    /// The Fuse's one choreographed moment. The value-driven animation means a Fuse that first
+    /// appears, or a widget that reloads, arrives whole instead of replaying the trip.
+    private var tripOrClear: Animation {
+        presentation.isTripped
+            ? FuseCurve.trip(reduceMotion: reduceMotion)
+            : FuseCurve.clear(reduceMotion: reduceMotion)
+    }
+
+    /// On recovery the hatch clears from its left edge and the fill arrives behind it, so both
+    /// sides of the moment use the same wipe from opposite ends and meet in the middle.
+    private var fillReveal: AnyTransition { wipe(anchor: .leading) }
+    private var hatchClear: AnyTransition { wipe(anchor: .trailing) }
+
+    private func wipe(anchor: UnitPoint) -> AnyTransition {
+        switch FusePresentation.hatchClear(reduceMotion: reduceMotion) {
+        case .leftToRight:
+            .modifier(
+                active: FuseWipe(progress: 0, anchor: anchor),
+                identity: FuseWipe(progress: 1, anchor: anchor)
+            )
+        case .crossFade:
+            .opacity
         }
     }
 
@@ -113,6 +136,47 @@ struct FuseGaugeStyle: GaugeStyle {
                 .fill(SurgeUIStyle.notch)
                 .frame(width: SurgeUIStyle.notchWidth, height: height)
                 .offset(x: width * position)
+        }
+    }
+}
+
+/// The curves of the Fuse's one choreographed moment. The presentation decides which motion
+/// plays; these are the timings the design system gives that moment.
+private enum FuseCurve {
+    /// Reduce Motion dissolves the trip instead of moving it, briefly.
+    static let crossFadeDuration: TimeInterval = 0.2
+    /// On recovery the hatch clears and the fill resumes together over one spring.
+    static let clearDuration: TimeInterval = 0.4
+    static let clearBounce: Double = 0.1
+
+    static func trip(reduceMotion: Bool) -> Animation {
+        reduceMotion
+            ? .easeInOut(duration: crossFadeDuration)
+            : .easeOut(duration: SurgeUIStyle.fuseAnimationDuration)
+    }
+
+    static func clear(reduceMotion: Bool) -> Animation {
+        switch FusePresentation.hatchClear(reduceMotion: reduceMotion) {
+        case .leftToRight: .spring(duration: clearDuration, bounce: clearBounce)
+        case .crossFade: .easeInOut(duration: crossFadeDuration)
+        }
+    }
+}
+
+/// Masks a view to a part of itself, so the hatch can leave and the fill can arrive on the same
+/// moving edge. `progress` runs from 1 to 0 as the hatch clears and 0 to 1 as the fill reveals.
+struct FuseWipe: ViewModifier, Animatable {
+    var progress: CGFloat
+    var anchor: UnitPoint
+
+    nonisolated var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content.mask {
+            Rectangle().scaleEffect(x: max(progress, 0), anchor: anchor)
         }
     }
 }

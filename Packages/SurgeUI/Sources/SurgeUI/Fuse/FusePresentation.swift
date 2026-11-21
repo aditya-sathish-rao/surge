@@ -11,6 +11,14 @@ public enum FuseState: String, Sendable, Equatable, CaseIterable {
     case unknown
 }
 
+/// How the hatch leaves the Fuse when the agent recovers. Every case plays once.
+public enum FuseHatchClear: Sendable, Equatable {
+    /// The hatch wipes away from the left edge over a spring, revealing the fill behind it.
+    case leftToRight
+    /// Reduce Motion: the hatch dissolves in place and the fill fades in under it.
+    case crossFade
+}
+
 /// Everything a Fuse draws and says, derived once from an agent so the view holds no rules.
 public struct FusePresentation: Sendable, Equatable {
     public static let noDataLabel = "No data"
@@ -110,6 +118,12 @@ public struct FusePresentation: Sendable, Equatable {
         case .high: .high
         case .nearLimit: .nearLimit
         }
+    }
+
+    /// The hatch clears left to right on recovery. Reduce Motion substitutes a cross-fade, so the
+    /// preference changes the picture here rather than in the view.
+    public static func hatchClear(reduceMotion: Bool) -> FuseHatchClear {
+        reduceMotion ? .crossFade : .leftToRight
     }
 
     /// "42%", "78% · High", "12% · Idle 4m", or the stall word when the Fuse is tripped.
