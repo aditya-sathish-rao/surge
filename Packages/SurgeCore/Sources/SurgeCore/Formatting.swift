@@ -75,10 +75,48 @@ public enum SurgeFormatting {
         }
     }
 
+    @available(*, deprecated, message: "Use menuBarSummary(orchestrators:workers:spend:) for the menu bar readout.")
     public static func menuBarReadout(orchestrators: Int, workers: Int, spend: SpendFigure) -> String {
         let orchestratorWord = orchestrators == 1 ? "Orch" : "Orchs"
         let workerWord = workers == 1 ? "Worker" : "Workers"
         return "\(orchestrators) \(orchestratorWord), \(workers) \(workerWord), \(spend.displayText)"
+    }
+
+    /// "1 Orch, 2 Workers, $1.42". A count of zero is left out, so four orchestrators and no
+    /// workers read "4 Orchs, $4.58" rather than carrying a dead "0 Workers" field. Nil when
+    /// there is nothing worth saying, so the item stays a bare glyph.
+    public static func menuBarSummary(
+        orchestrators: Int,
+        workers: Int,
+        spend: SpendFigure
+    ) -> String? {
+        let fields = [
+            orchestratorField(orchestrators),
+            workerField(workers),
+            spendField(spend, agentCount: orchestrators + workers),
+        ].compactMap { $0 }
+        return fields.isEmpty ? nil : fields.joined(separator: ", ")
+    }
+
+    /// True when the menu bar has a spend figure worth showing. An amount nothing could report is
+    /// left out, and so is a zero from a day with no agents running.
+    public static func menuBarShowsSpend(agentCount: Int, spend: SpendFigure) -> Bool {
+        spend.source != .unavailable && (agentCount > 0 || spend.amountUSD > 0)
+    }
+
+    private static func orchestratorField(_ orchestrators: Int) -> String? {
+        guard orchestrators > 0 else { return nil }
+        return "\(orchestrators) \(orchestrators == 1 ? "Orch" : "Orchs")"
+    }
+
+    private static func workerField(_ workers: Int) -> String? {
+        guard workers > 0 else { return nil }
+        return workers == 1 ? "1 Worker" : "\(workers) Workers"
+    }
+
+    private static func spendField(_ spend: SpendFigure, agentCount: Int) -> String? {
+        guard menuBarShowsSpend(agentCount: agentCount, spend: spend) else { return nil }
+        return spend.menuBarText
     }
 
     /// The number and its label as one string, or the word unavailable when there is no figure.

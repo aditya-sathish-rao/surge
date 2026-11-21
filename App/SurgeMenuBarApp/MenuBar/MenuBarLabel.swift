@@ -20,8 +20,10 @@ struct MenuBarItem: View {
 
     var body: some View {
         Label {
-            Text(readout.text ?? "")
-                .monospacedDigit()
+            if let text = readout.text {
+                Text(text)
+                    .monospacedDigit()
+            }
         } icon: {
             Image(systemName: readout.symbolName)
         }

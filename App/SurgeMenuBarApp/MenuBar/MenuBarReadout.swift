@@ -33,36 +33,19 @@ struct MenuBarReadout: Equatable {
     /// Nil when there is nothing worth saying, so the item stays a bare glyph instead of reading
     /// "0 Orchs, 0 Workers, $0.00".
     var text: String? {
-        guard let summary else { return nil }
+        guard
+            let summary = SurgeFormatting.menuBarSummary(
+                orchestrators: orchestrators,
+                workers: workers,
+                spend: spend
+            )
+        else { return nil }
         guard needsYou else { return summary }
         return "\(attentionCount) · \(summary)"
     }
 
-    /// "1 Orch, 2 Workers, $1.42". A count of zero is left out, so four orchestrators and no
-    /// workers read "4 Orchs, $4.58" rather than carrying a dead "0 Workers" field.
-    private var summary: String? {
-        let fields = [orchestratorField, workerField, spendField].compactMap { $0 }
-        return fields.isEmpty ? nil : fields.joined(separator: ", ")
-    }
-
-    private var orchestratorField: String? {
-        guard orchestrators > 0 else { return nil }
-        return "\(orchestrators) \(orchestrators == 1 ? "Orch" : "Orchs")"
-    }
-
-    private var workerField: String? {
-        guard workers > 0 else { return nil }
-        return workers == 1 ? "1 Worker" : "\(workers) Workers"
-    }
-
-    /// An amount nothing could report is left out rather than shown as zero spend, and a zero from
-    /// a day with no agents running is left out too because it says nothing.
-    private var spendField: String? {
-        showsSpend ? spend.amountText : nil
-    }
-
     private var showsSpend: Bool {
-        spend.source != .unavailable && (agentCount > 0 || spend.amountUSD > 0)
+        SurgeFormatting.menuBarShowsSpend(agentCount: agentCount, spend: spend)
     }
 
     /// "Surge. 5 agents, 2 need you. 4 dollars 67 spent today."
@@ -77,10 +60,10 @@ struct MenuBarReadout: Equatable {
 
     private var runDescription: String? {
         guard agentCount > 0 else { return "No agents running" }
+        if attentionCount == 1 { return "1 agent needs you" }
         let agents = agentCount == 1 ? "1 agent" : "\(agentCount) agents"
         guard needsYou else { return agents }
-        let needsYou = attentionCount == 1 ? "1 needs you" : "\(attentionCount) need you"
-        return "\(agents), \(needsYou)"
+        return "\(agents), \(attentionCount) need you"
     }
 
     private var spendDescription: String? {
