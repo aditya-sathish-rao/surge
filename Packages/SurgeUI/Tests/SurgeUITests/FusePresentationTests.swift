@@ -130,4 +130,36 @@ struct FusePresentationTests {
         #expect(presentation.fillRatio == 1)
         #expect(presentation.label == "100% · Near limit")
     }
+
+    @Test func theHatchIsOnlyDrawnForAStall() {
+        for state in FuseState.allCases {
+            let presentation = FusePresentation(
+                state: state,
+                level: .normal,
+                fillRatio: 0.5,
+                label: "50%",
+                contextLabel: "50%",
+                contextClause: "Context 50 percent",
+                accessibilityLabel: "Context 50 percent of 200 thousand tokens"
+            )
+
+            #expect(presentation.isTripped == (state == .tripped))
+        }
+    }
+
+    @Test func theFillStopsOnlyWhileTheHatchIsDrawn() {
+        let stalled = UITestFixtures.agent(status: .stalled(since: UITestFixtures.now), contextTokens: 150_000)
+        #expect(FusePresentation(agent: stalled, now: UITestFixtures.now).fillAnimates == false)
+
+        let working = UITestFixtures.agent(status: .working, contextTokens: 150_000)
+        #expect(FusePresentation(agent: working, now: UITestFixtures.now).fillAnimates)
+    }
+
+    @Test func recoveryClearsLeftToRight() {
+        #expect(FusePresentation.hatchClear(reduceMotion: false) == .leftToRight)
+    }
+
+    @Test func reduceMotionMakesTheClearACrossFade() {
+        #expect(FusePresentation.hatchClear(reduceMotion: true) == .crossFade)
+    }
 }
