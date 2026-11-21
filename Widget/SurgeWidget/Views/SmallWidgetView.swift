@@ -9,9 +9,11 @@ struct SmallWidgetView: View {
     let filter: WidgetWorkspaceFilter
     let now: Date
     @Environment(\.colorSchemeContrast) private var systemContrast
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.surgeAppearance) private var appearance
 
     private var contrastLevel: ColorSchemeContrast { WidgetStyle.contrast(appearance, system: systemContrast) }
+    private var reduceMotion: Bool { appearance?.reduceMotion ?? systemReduceMotion }
 
     private var content: WidgetSmallContent { WidgetSmallContent(snapshot: snapshot, filter: filter) }
 
@@ -56,20 +58,23 @@ struct SmallWidgetView: View {
 
     private func calmBody(working: Int, workspaceCount: Int, fuseAgents: [WidgetAgentRef]) -> some View {
         VStack(alignment: .leading, spacing: SurgeSpacing.space1) {
-            Text("\(working)")
-                .font(WidgetStyle.readout)
-                .tracking(WidgetStyle.readoutTracking)
-                .foregroundStyle(SurgeInk.primary())
-                .monospacedDigit()
-                .contentTransition(.numericText())
-                .accessibilityLabel(working == 1 ? "1 agent working" : "\(working) agents working")
-            Text(WidgetHeader.calmSubtitle(working: working, workspaceCount: workspaceCount))
-                .font(WidgetStyle.meta)
-                .foregroundStyle(SurgeInk.secondary(contrastLevel))
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("\(working)")
+                    .font(WidgetStyle.readout)
+                    .tracking(WidgetStyle.readoutTracking)
+                    .foregroundStyle(SurgeInk.primary())
+                    .monospacedDigit()
+                    .contentTransition(reduceMotion ? .identity : .numericText())
+                Text(WidgetHeader.calmSubtitle(working: working, workspaceCount: workspaceCount))
+                    .font(WidgetStyle.meta)
+                    .foregroundStyle(SurgeInk.secondary(contrastLevel))
+                    .lineLimit(1)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(WidgetHeader.calmVoiceOver(working: working, workspaceCount: workspaceCount))
             HStack(alignment: .bottom, spacing: SurgeSpacing.space2) {
                 ForEach(fuseAgents) { agent in
-                    miniFuse(FusePresentation(agent: agent.agent, now: now))
+                    miniFuse(agent)
                 }
             }
             .frame(height: WidgetStyle.miniFuseLength, alignment: .bottom)
@@ -78,21 +83,23 @@ struct SmallWidgetView: View {
     }
 
     private func needsYouBody(agent: WidgetAgentRef, others: Int) -> some View {
-        VStack(alignment: .leading, spacing: SurgeSpacing.space1) {
-            Image(systemName: agent.agent.status.symbol)
+        let presentation = presentation(for: agent)
+        return VStack(alignment: .leading, spacing: SurgeSpacing.space1) {
+            Image(systemName: presentation.stateSymbol)
                 .font(SurgeTypography.sans(18))
-                .foregroundStyle(WidgetStyle.statusColor(for: agent.agent.status, contrast: contrastLevel))
-            Text(AgentRowPresentation.displayName(forModel: agent.agent.modelName))
-                .font(SurgeTypography.sans(13, weight: .medium))
+                .foregroundStyle(WidgetStyle.statusColor(for: presentation.status, contrast: contrastLevel))
+                .accessibilityHidden(true)
+            Text(presentation.modelName)
+                .font(WidgetStyle.heroName)
                 .foregroundStyle(SurgeInk.primary())
                 .lineLimit(1)
             WidgetStatusText(
-                status: agent.agent.status,
-                color: WidgetStyle.statusColor(for: agent.agent.status, contrast: contrastLevel),
-                label: SurgeFormatting.statusLabel(agent.agent.status, now: now)
+                status: presentation.status,
+                color: WidgetStyle.statusColor(for: presentation.status, contrast: contrastLevel),
+                label: SurgeFormatting.statusLabel(presentation.status, now: now)
             )
             .font(WidgetStyle.meta)
-            Text(role(agent))
+            Text(provenance(agent))
                 .font(WidgetStyle.meta)
                 .foregroundStyle(SurgeInk.secondary(contrastLevel))
                 .lineLimit(1)
@@ -103,20 +110,44 @@ struct SmallWidgetView: View {
                     .lineLimit(1)
             }
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spokenRow(presentation: presentation, others: others))
     }
 
-    private func role(_ agent: WidgetAgentRef) -> String {
-        let role = agent.isSubAgent ? "sub-agent" : "agent"
-        return "\(agent.workspaceName) · \(role)"
+    /// The row is one VoiceOver element, and it says the same sentence the Medium and Large rows do,
+    /// then how many others are waiting. The visible sub-agent note is already inside that sentence.
+    private func spokenRow(presentation: AgentRowPresentation, others: Int) -> String {
+        guard others > 0 else { return presentation.accessibilityLabel }
+        return "\(presentation.accessibilityLabel) \(WidgetHeader.othersNeedingVoiceOver(others))"
+    }
+
+    /// Aggregated once so the visible words, the Fuse and the spoken sentence can never disagree.
+    private func presentation(for agent: WidgetAgentRef) -> AgentRowPresentation {
+        AgentRowPresentation(
+            agent: agent.agent,
+            workspaceName: agent.workspaceName,
+            now: now,
+            kind: agent.parentModelName.map {
+                .subAgent(parentName: AgentRowPresentation.displayName(forModel: $0))
+            } ?? .agent
+        )
+    }
+
+    /// Which workspace the agent runs in, and whether it is a sub-agent.
+    private func provenance(_ agent: WidgetAgentRef) -> String {
+        let kind = agent.isSubAgent ? "sub-agent" : "agent"
+        return "\(agent.workspaceName) · \(kind)"
     }
 
     /// The same Fuse the popover draws, turned on its end: a capsule with the two notches, so the
     /// four mini meters still read without colour.
-    private func miniFuse(_ presentation: FusePresentation) -> some View {
-        Fuse(presentation, size: .hero)
+    private func miniFuse(_ agent: WidgetAgentRef) -> some View {
+        let presentation = presentation(for: agent)
+        return Fuse(presentation.fuse, size: .hero)
             .frame(width: WidgetStyle.miniFuseLength, height: WidgetStyle.miniFuseWidth)
             .rotationEffect(.degrees(-90))
             .frame(width: WidgetStyle.miniFuseWidth, height: WidgetStyle.miniFuseLength)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(presentation.accessibilityLabel)
     }
 }

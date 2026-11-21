@@ -70,7 +70,7 @@ struct WidgetAgentRow: View {
         HStack(spacing: WidgetStyle.rowSpacing) {
             if presentation.kind.isSubAgent {
                 Image(systemName: "arrow.turn.down.right")
-                    .font(.system(size: 10, weight: .regular))
+                    .font(SurgeTypography.sans(11))
                     .foregroundStyle(SurgeInk.tertiary(contrastLevel))
                     .frame(width: 10, alignment: .center)
                     .accessibilityHidden(true)

@@ -103,8 +103,10 @@ struct WidgetContentTests {
         #expect(WidgetHeader.attention(needing: 0) == "All agents working")
         #expect(WidgetHeader.attention(needing: 1) == "1 needs you")
         #expect(WidgetHeader.attention(needing: 2) == "2 need you")
-        #expect(WidgetHeader.othersNeeding(1) == "+1 more needs you")
-        #expect(WidgetHeader.othersNeeding(3) == "+3 more need you")
+        #expect(WidgetHeader.othersNeeding(1) == "+1 waiting for you")
+        #expect(WidgetHeader.othersNeeding(3) == "+3 waiting for you")
+        #expect(WidgetHeader.othersNeedingVoiceOver(1) == "1 more agent is waiting for you.")
+        #expect(WidgetHeader.othersNeedingVoiceOver(3) == "3 more agents are waiting for you.")
         #expect(WidgetHeader.overflow(1) == "+1 more agent")
         #expect(WidgetHeader.overflow(4) == "+4 more agents")
         #expect(WidgetHeader.agentCount(1) == "1 agent")
@@ -117,9 +119,15 @@ struct WidgetContentTests {
         #expect(WidgetHeader.calmSubtitle(working: 0, workspaceCount: 0) == "nothing working")
     }
 
+    @Test func theCalmReadoutIsOneSpokenSentence() {
+        #expect(WidgetHeader.calmVoiceOver(working: 4, workspaceCount: 2) == "4 agents working in 2 workspaces")
+        #expect(WidgetHeader.calmVoiceOver(working: 1, workspaceCount: 1) == "1 agent working in 1 workspace")
+        #expect(WidgetHeader.calmVoiceOver(working: 0, workspaceCount: 0) == "No agents working")
+    }
+
     @Test func aRowFitsTheShortStateWordNotTheSentence() {
         #expect(WidgetStatusWording.short(.working) == "Working")
-        #expect(WidgetStatusWording.short(.waitingForYou) == "Waiting")
+        #expect(WidgetStatusWording.short(.waitingForYou) == "Waiting for you")
         #expect(WidgetStatusWording.short(.stalled(since: WidgetTestFixtures.now)) == "Stalled")
         #expect(WidgetStatusWording.short(.idle(since: WidgetTestFixtures.now)) == "Idle")
         #expect(WidgetStatusWording.short(.compacting) == "Compacting")
