@@ -83,7 +83,7 @@ struct SmallWidgetView: View {
     }
 
     private func needsYouBody(agent: WidgetAgentRef, others: Int) -> some View {
-        let presentation = presentation(for: agent)
+        let presentation = AgentRowPresentation(reference: agent, now: now)
         return VStack(alignment: .leading, spacing: SurgeSpacing.space1) {
             Image(systemName: presentation.stateSymbol)
                 .font(SurgeTypography.sans(18))
@@ -121,18 +121,6 @@ struct SmallWidgetView: View {
         return "\(presentation.accessibilityLabel) \(WidgetHeader.othersNeedingVoiceOver(others))"
     }
 
-    /// Aggregated once so the visible words, the Fuse and the spoken sentence can never disagree.
-    private func presentation(for agent: WidgetAgentRef) -> AgentRowPresentation {
-        AgentRowPresentation(
-            agent: agent.agent,
-            workspaceName: agent.workspaceName,
-            now: now,
-            kind: agent.parentModelName.map {
-                .subAgent(parentName: AgentRowPresentation.displayName(forModel: $0))
-            } ?? .agent
-        )
-    }
-
     /// Which workspace the agent runs in, and whether it is a sub-agent.
     private func provenance(_ agent: WidgetAgentRef) -> String {
         let kind = agent.isSubAgent ? "sub-agent" : "agent"
@@ -142,7 +130,7 @@ struct SmallWidgetView: View {
     /// The same Fuse the popover draws, turned on its end: a capsule with the two notches, so the
     /// four mini meters still read without colour.
     private func miniFuse(_ agent: WidgetAgentRef) -> some View {
-        let presentation = presentation(for: agent)
+        let presentation = AgentRowPresentation(reference: agent, now: now)
         return Fuse(presentation.fuse, size: .hero)
             .frame(width: WidgetStyle.miniFuseLength, height: WidgetStyle.miniFuseWidth)
             .rotationEffect(.degrees(-90))

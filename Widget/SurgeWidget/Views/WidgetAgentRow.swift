@@ -55,14 +55,7 @@ struct WidgetAgentRow: View {
     private var contrastLevel: ColorSchemeContrast { WidgetStyle.contrast(appearance, system: systemContrast) }
 
     init(reference: WidgetAgentRef, now: Date, fuseWidth: CGFloat = WidgetStyle.fuseWidth) {
-        presentation = AgentRowPresentation(
-            agent: reference.agent,
-            workspaceName: reference.workspaceName,
-            now: now,
-            kind: reference.parentModelName.map {
-                .subAgent(parentName: AgentRowPresentation.displayName(forModel: $0))
-            } ?? .agent
-        )
+        presentation = AgentRowPresentation(reference: reference, now: now)
         self.fuseWidth = fuseWidth
     }
 
@@ -96,6 +89,21 @@ struct WidgetAgentRow: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
+    }
+}
+
+extension AgentRowPresentation {
+    /// The one mapping from the widget's agent reference to a row, so every size draws the same
+    /// state word, Fuse and spoken sentence.
+    init(reference: WidgetAgentRef, now: Date) {
+        self.init(
+            agent: reference.agent,
+            workspaceName: reference.workspaceName,
+            now: now,
+            kind: reference.parentModelName.map {
+                .subAgent(parentName: AgentRowPresentation.displayName(forModel: $0))
+            } ?? .agent
+        )
     }
 }
 
