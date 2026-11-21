@@ -7,15 +7,6 @@ import SwiftUI
 struct WidgetStatusText: View {
     let status: AgentStatus
     let color: Color
-    /// The word for a state that has no timer. Rows pass nothing and get the short word; the Small
-    /// widget passes the PRD's full label, because it has the room.
-    var label: String?
-
-    init(status: AgentStatus, color: Color, label: String? = nil) {
-        self.status = status
-        self.color = color
-        self.label = label
-    }
 
     var body: some View {
         text
@@ -29,16 +20,16 @@ struct WidgetStatusText: View {
         switch status {
         case .stalled(let since):
             HStack(spacing: 3) {
-                Text(WidgetStatusWording.short(status))
+                Text(WidgetStatusWording.label(status))
                 Text(since, style: .timer)
             }
         case .idle(let since):
             HStack(spacing: 3) {
-                Text(WidgetStatusWording.short(status))
+                Text(WidgetStatusWording.label(status))
                 Text(since, style: .timer)
             }
         default:
-            Text(label ?? WidgetStatusWording.short(status))
+            Text(WidgetStatusWording.label(status))
         }
     }
 }
@@ -55,14 +46,7 @@ struct WidgetAgentRow: View {
     private var contrastLevel: ColorSchemeContrast { WidgetStyle.contrast(appearance, system: systemContrast) }
 
     init(reference: WidgetAgentRef, now: Date, fuseWidth: CGFloat = WidgetStyle.fuseWidth) {
-        presentation = AgentRowPresentation(
-            agent: reference.agent,
-            workspaceName: reference.workspaceName,
-            now: now,
-            kind: reference.parentModelName.map {
-                .subAgent(parentName: AgentRowPresentation.displayName(forModel: $0))
-            } ?? .agent
-        )
+        presentation = AgentRowPresentation(reference: reference, now: now)
         self.fuseWidth = fuseWidth
     }
 
@@ -70,7 +54,7 @@ struct WidgetAgentRow: View {
         HStack(spacing: WidgetStyle.rowSpacing) {
             if presentation.kind.isSubAgent {
                 Image(systemName: "arrow.turn.down.right")
-                    .font(.system(size: 10, weight: .regular))
+                    .font(SurgeTypography.sans(11))
                     .foregroundStyle(SurgeInk.tertiary(contrastLevel))
                     .frame(width: 10, alignment: .center)
                     .accessibilityHidden(true)
@@ -92,10 +76,25 @@ struct WidgetAgentRow: View {
                 color: WidgetStyle.statusColor(for: presentation.status, contrast: contrastLevel)
             )
             .font(WidgetStyle.rowValue)
-            .frame(width: WidgetStyle.valueWidth, alignment: .trailing)
+            .frame(minWidth: WidgetStyle.valueWidth, alignment: .trailing)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
+    }
+}
+
+extension AgentRowPresentation {
+    /// The one mapping from the widget's agent reference to a row, so every size draws the same
+    /// state word, Fuse and spoken sentence.
+    init(reference: WidgetAgentRef, now: Date) {
+        self.init(
+            agent: reference.agent,
+            workspaceName: reference.workspaceName,
+            now: now,
+            kind: reference.parentModelName.map {
+                .subAgent(parentName: AgentRowPresentation.displayName(forModel: $0))
+            } ?? .agent
+        )
     }
 }
 

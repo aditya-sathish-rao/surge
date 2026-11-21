@@ -13,7 +13,7 @@ Surge is a native macOS 14+ menu bar app and desktop widget that monitors coding
 
 ## Project state and decisions
 
-Current state: the scaffold is done. The Xcode project is generated from `project.yml`, the six Swift packages exist as empty stubs, and the app and widget targets are placeholders that build and run. Real work is split into `tasks/`, one file per work stream. Start with `tasks/README.md` for the order and rules.
+Current state: see the status line in `README.md`, which is the one owner of milestone status. Real work is split into `tasks/`, one file per work stream. Start with `tasks/README.md` for the order and rules.
 
 Decisions already made by the user. Do not reopen them:
 
@@ -22,7 +22,7 @@ Decisions already made by the user. Do not reopen them:
 - The menu bar shows the PRD's short text readout (for example "1 Orch, 2 Workers, $1.42"), not a single number.
 - Surge is read-only. No Nudge Agent button, no action on any agent, no budget, no overall balance, no Claude plan gauges.
 - One widget, "Surge", in Small, Medium and Large. Cards are dark in both appearances.
-- Typeface is Inter Tight until Beausite Classic is licensed. Colours and fonts come from `SurgeCore` tokens.
+- Beausite Classic needs a licence, so the app and the widget ship Geist. The family names come from the design tokens in `SurgeCore`, and `README.md` points at those tokens rather than restating them.
 - Development is local and unsigned until the MVP. The App Group, Developer ID and notarization wait until then. For local runs the snapshot goes to `~/Library/Application Support/Surge/snapshot.json` behind one location type, and the user must confirm that approach before it is built.
 - Use `make run`, `make test` and `make lint`. Run `make project` after changing `project.yml`.
 

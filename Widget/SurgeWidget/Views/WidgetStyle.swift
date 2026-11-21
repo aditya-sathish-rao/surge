@@ -10,6 +10,9 @@ import SwiftUI
 enum WidgetStyle {
     static let heading = SurgeTypography.sans(11, weight: .medium)
     static let rowName = SurgeTypography.sans(12, weight: .medium)
+    /// The Small widget's one agent is the whole point of that size, so its name sits a step above
+    /// the status and provenance lines under it.
+    static let heroName = SurgeTypography.sans(13, weight: .medium)
     static let rowValue = SurgeTypography.sans(11)
     static let meta = SurgeTypography.widgetMeta
     static let readout = SurgeTypography.readoutL
@@ -20,11 +23,14 @@ enum WidgetStyle {
     static let rowSpacing: CGFloat = 5
     /// The Medium layout is the tight one: four rows, balances and the freshness caption at 158 pt.
     static let compactSpacing: CGFloat = 2
-    static let fuseWidth: CGFloat = 64
-    static let valueWidth: CGFloat = 68
+    static let fuseWidth: CGFloat = 60
+    /// The status column is at least this wide: 92 pt fits every state word and a stalled timer up to
+    /// three-digit hours at 11 pt, and a longer timer widens the column when the row has room.
+    static let valueWidth: CGFloat = 92
     static let miniFuseLength: CGFloat = 34
     static let miniFuseWidth: CGFloat = 10
     static let skeletonOpacity: Double = 0.12
+    static let skeletonOpacityIncreasedContrast: Double = 0.24
     static let maxLargeRows = 5
 
     /// Waiting for you owns orange, stalled owns coral, a healthy agent is drawn in white.
@@ -51,7 +57,13 @@ enum WidgetStyle {
         return hasStalled ? SurgeColors.alert : SurgeColors.caution
     }
 
-    static var skeletonFill: Color { SurgeInk.primary().opacity(skeletonOpacity) }
+    /// The placeholder is the only surface that has no text to carry contrast, so it steps its
+    /// own fill up instead of relying on a label.
+    static func skeletonFill(_ contrast: ColorSchemeContrast) -> Color {
+        SurgeInk.primary().opacity(
+            contrast == .increased ? skeletonOpacityIncreasedContrast : skeletonOpacity
+        )
+    }
 
     static func contrast(_ appearance: SurgeAppearance?, system: ColorSchemeContrast) -> ColorSchemeContrast {
         appearance?.contrast ?? system

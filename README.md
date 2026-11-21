@@ -4,7 +4,7 @@ A native macOS menu bar app and desktop widget that shows what your coding agent
 
 Surge is built for the pattern of one orchestrator (for example Claude Code) fanning work out to cheaper or specialised models over DeepSeek and OpenRouter. It watches all of them in one place so you do not have to tail logs or open three billing dashboards.
 
-> Status: scaffolded. The Xcode project, package stubs and a placeholder menu bar item and widget build and run. No real features yet. See [Roadmap](#roadmap) and [`tasks/`](tasks/).
+> Status: in progress. The app, the widget and the six Swift packages are implemented and working. What remains is polish, end-to-end hardening and packaging. See [Roadmap](#roadmap) and [`tasks/`](tasks/).
 
 ## Platform
 
@@ -161,11 +161,9 @@ DEVELOPMENT_TEAM = YOURTEAMID
 
 Run `make project` again. The bundle ID prefix is `SURGE_BUNDLE_ID_PREFIX` in `Config/Base.xcconfig`. To add the widget, right-click the desktop, choose Edit Widgets, and add Surge.
 
-Early milestones run on mock data, so you can watch the interface take shape before any live ingestion exists.
-
 ### Fonts
 
-The app and widget bundle the variable Geist Sans font (SIL Open Font License 1.1, from [vercel/geist-font](https://github.com/vercel/geist-font)) and Fira Code (SIL Open Font License 1.1, from [tonsky/FiraCode](https://github.com/tonsky/FiraCode)). Each licence text ships next to its font in `App/SurgeMenuBarApp/Fonts/` and `Widget/SurgeWidget/Fonts/`.
+The app and widget bundle the variable Geist Sans font (SIL Open Font License 1.1, from [vercel/geist-font](https://github.com/vercel/geist-font)) and Fira Code (SIL Open Font License 1.1, from [tonsky/FiraCode](https://github.com/tonsky/FiraCode)). Each licence text ships next to its font in `App/SurgeMenuBarApp/Fonts/` and `Widget/SurgeWidget/Fonts/`. The family names views use are the `SurgeCore` design tokens, `SurgeTypography.sansFamilyName` and `SurgeTypography.monoFamilyName`.
 
 ### Tests and checks
 

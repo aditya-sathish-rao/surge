@@ -9,6 +9,11 @@ struct LargeWidgetView: View {
     let filter: WidgetWorkspaceFilter
     let now: Date
 
+    /// Settle for fewer rows rather than clipping the chart below the tree.
+    private static let largeRowLimits = [
+        WidgetStyle.maxLargeRows, WidgetStyle.maxLargeRows - 1, WidgetStyle.maxLargeRows - 2,
+    ]
+
     private var workspace: WorkspaceSession? {
         if let id = filter.workspaceID {
             return snapshot.workspaces.first { $0.id == id }
@@ -36,14 +41,28 @@ struct LargeWidgetView: View {
         }
     }
 
+    /// The chart and the footer are fixed, so the tree gets whatever height is left. The freshness
+    /// caption and a long tree can both be true at once, so the tree offers three sizes and the
+    /// system picks the first that fits instead of clipping the chart underneath.
     @ViewBuilder
     private func tree(_ workspace: WorkspaceSession) -> some View {
-        let rows = WidgetSelection.trimmed(WidgetSelection.tree(in: workspace), limit: WidgetStyle.maxLargeRows)
-        ForEach(rows.visible) { agent in
-            WidgetAgentRow(reference: agent, now: now)
+        let refs = WidgetSelection.tree(in: workspace)
+        ViewThatFits(in: .vertical) {
+            ForEach(Self.largeRowLimits, id: \.self) { limit in
+                rows(refs, limit: limit)
+            }
         }
-        if rows.hidden > 0 {
-            WidgetOverflowRow(text: WidgetHeader.overflow(rows.hidden))
+    }
+
+    private func rows(_ refs: [WidgetAgentRef], limit: Int) -> some View {
+        let trimmed = WidgetSelection.trimmed(refs, limit: limit)
+        return VStack(alignment: .leading, spacing: SurgeSpacing.space1) {
+            ForEach(trimmed.visible) { agent in
+                WidgetAgentRow(reference: agent, now: now)
+            }
+            if trimmed.hidden > 0 {
+                WidgetOverflowRow(text: WidgetHeader.overflow(trimmed.hidden))
+            }
         }
     }
 
@@ -51,5 +70,6 @@ struct LargeWidgetView: View {
         DailySpendChart(days: snapshot.dailySpend, range: .sevenDays, isWidget: true)
             .padding(SurgeSpacing.space2)
             .background(SurgeColors.tile, in: RoundedRectangle(cornerRadius: SurgeRadius.tile))
+            .accessibilityChartDescriptor(WidgetSpendChartDescriptor(days: snapshot.dailySpend))
     }
 }
