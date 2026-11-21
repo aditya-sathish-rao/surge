@@ -29,16 +29,16 @@ struct WidgetStatusText: View {
         switch status {
         case .stalled(let since):
             HStack(spacing: 3) {
-                Text(WidgetStatusWording.short(status))
+                Text(WidgetStatusWording.label(status))
                 Text(since, style: .timer)
             }
         case .idle(let since):
             HStack(spacing: 3) {
-                Text(WidgetStatusWording.short(status))
+                Text(WidgetStatusWording.label(status))
                 Text(since, style: .timer)
             }
         default:
-            Text(label ?? WidgetStatusWording.short(status))
+            Text(label ?? WidgetStatusWording.label(status))
         }
     }
 }
@@ -85,7 +85,7 @@ struct WidgetAgentRow: View {
                 color: WidgetStyle.statusColor(for: presentation.status, contrast: contrastLevel)
             )
             .font(WidgetStyle.rowValue)
-            .frame(width: WidgetStyle.valueWidth, alignment: .trailing)
+            .frame(minWidth: WidgetStyle.valueWidth, alignment: .trailing)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)

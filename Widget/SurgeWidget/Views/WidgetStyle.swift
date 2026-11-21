@@ -24,9 +24,9 @@ enum WidgetStyle {
     /// The Medium layout is the tight one: four rows, balances and the freshness caption at 158 pt.
     static let compactSpacing: CGFloat = 2
     static let fuseWidth: CGFloat = 60
-    /// "Waiting for you" and "Stalled 1:02:03" both fit the status column at 11 pt, so no state word
-    /// is ever shortened or clipped.
-    static let valueWidth: CGFloat = 82
+    /// The status column is at least this wide: 92 pt fits every state word and a stalled timer up to
+    /// three-digit hours at 11 pt, and a longer timer widens the column when the row has room.
+    static let valueWidth: CGFloat = 92
     static let miniFuseLength: CGFloat = 34
     static let miniFuseWidth: CGFloat = 10
     static let skeletonOpacity: Double = 0.12

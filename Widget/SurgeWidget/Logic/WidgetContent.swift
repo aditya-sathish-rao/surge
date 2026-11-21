@@ -54,10 +54,10 @@ public enum WidgetFreshness {
     }
 }
 
-/// The status word a widget row can fit beside its Fuse. The full sentence stays in the row's
-/// VoiceOver label, and stalled and idle rows let the system timer count for them.
+/// The word a widget row shows beside its Fuse: the PRD's state labels, with stalled and idle rows
+/// letting the system timer count for them.
 public enum WidgetStatusWording {
-    public static func short(_ status: AgentStatus) -> String {
+    public static func label(_ status: AgentStatus) -> String {
         switch status {
         case .working: "Working"
         case .waitingForYou: "Waiting for you"
@@ -96,7 +96,7 @@ public enum WidgetHeader {
 
     /// "+1 waiting for you" in the design system; pluralised without inventing a new word.
     public static func othersNeeding(_ count: Int) -> String {
-        count == 1 ? "+1 waiting for you" : "+\(count) waiting for you"
+        "+\(count) waiting for you"
     }
 
     /// The spoken form of the "+2 waiting for you" line, which is a sentence where the visible line

@@ -125,14 +125,14 @@ struct WidgetContentTests {
         #expect(WidgetHeader.calmVoiceOver(working: 0, workspaceCount: 0) == "No agents working")
     }
 
-    @Test func aRowFitsTheShortStateWordNotTheSentence() {
-        #expect(WidgetStatusWording.short(.working) == "Working")
-        #expect(WidgetStatusWording.short(.waitingForYou) == "Waiting for you")
-        #expect(WidgetStatusWording.short(.stalled(since: WidgetTestFixtures.now)) == "Stalled")
-        #expect(WidgetStatusWording.short(.idle(since: WidgetTestFixtures.now)) == "Idle")
-        #expect(WidgetStatusWording.short(.compacting) == "Compacting")
-        #expect(WidgetStatusWording.short(.done) == "Done")
-        #expect(WidgetStatusWording.short(.noSignal) == "No signal")
+    @Test func aRowShowsThePRDStateLabel() {
+        #expect(WidgetStatusWording.label(.working) == "Working")
+        #expect(WidgetStatusWording.label(.waitingForYou) == "Waiting for you")
+        #expect(WidgetStatusWording.label(.stalled(since: WidgetTestFixtures.now)) == "Stalled")
+        #expect(WidgetStatusWording.label(.idle(since: WidgetTestFixtures.now)) == "Idle")
+        #expect(WidgetStatusWording.label(.compacting) == "Compacting")
+        #expect(WidgetStatusWording.label(.done) == "Done")
+        #expect(WidgetStatusWording.label(.noSignal) == "No signal")
     }
 
     @Test func theFooterShowsAccountsThatReportABalanceFirst() {
