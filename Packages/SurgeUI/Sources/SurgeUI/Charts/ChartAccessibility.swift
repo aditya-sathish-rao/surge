@@ -17,11 +17,20 @@ public struct ChartDataPoint: Sendable, Equatable {
     public let value: Double
     /// A provider's share of today's spend, on the charts that draw a second axis for it.
     public let sharePercent: Double?
+    /// How the value was obtained, when the value is a dollar figure. Nil for a measurement such
+    /// as tokens per second. The number is never spoken without it.
+    public let costSource: CostSource?
 
-    public init(position: Position, value: Double, sharePercent: Double? = nil) {
+    public init(
+        position: Position,
+        value: Double,
+        sharePercent: Double? = nil,
+        costSource: CostSource? = nil
+    ) {
         self.position = position
         self.value = value
         self.sharePercent = sharePercent
+        self.costSource = costSource
     }
 }
 
@@ -76,7 +85,7 @@ public enum ChartAccessibility {
         "Daily spend over \(range.dayCount) days"
     }
 
-    /// "Today $1.42, estimated. $4.51 over the last 6 days."
+    /// "Today $1.42, estimated. $4.51, estimated over the last 6 days."
     public static func spendSummary(
         days: [DailySpendPoint],
         range: DailySpendRange,
@@ -88,12 +97,17 @@ public enum ChartAccessibility {
             return "No spend recorded in the last \(range.dayCount) days."
         }
         let today = SpendFigure(amountUSD: last.totalUSD, source: source).accessibilityText
+        let window = SpendFigure(amountUSD: total, source: source).accessibilityText
         let span = visible.count == 1 ? "today" : "over the last \(visible.count) days"
-        return "Today \(today). \(SurgeFormatting.cost(total)) \(span)."
+        return "Today \(today). \(window) \(span)."
     }
 
     /// One series per provider that has spend, each carrying that provider's days.
-    public static func spendSeries(days: [DailySpendPoint], range: DailySpendRange) -> [ChartSeries] {
+    public static func spendSeries(
+        days: [DailySpendPoint],
+        range: DailySpendRange,
+        source: CostSource = .estimated
+    ) -> [ChartSeries] {
         let visible = visibleDays(days, range: range)
         return Provider.allCases.compactMap { provider in
             let points = visible.compactMap { day -> ChartDataPoint? in
@@ -101,7 +115,8 @@ public enum ChartAccessibility {
                 guard amount > 0 else { return nil }
                 return ChartDataPoint(
                     position: .number(day.date.timeIntervalSinceReferenceDate),
-                    value: amount
+                    value: amount,
+                    costSource: source
                 )
             }
             guard !points.isEmpty else { return nil }
@@ -139,19 +154,21 @@ public enum ChartAccessibility {
             summary: spendSummary(days: days, range: range, source: source),
             xAxis: xAxis,
             yAxis: yAxis,
-            series: seriesDescriptors(spendSeries(days: days, range: range))
+            series: seriesDescriptors(spendSeries(days: days, range: range, source: source))
         )
     }
 
     // MARK: Spend by provider
 
-    /// "3 providers, $1.59 today. Anthropic 64 percent, DeepSeek 26 percent."
+    /// "3 providers, $1.59, estimated today. Anthropic 64 percent, DeepSeek 26 percent."
     public static func shareSummary(shares: [SpendShare]) -> String {
         guard !shares.isEmpty else { return "No spend today." }
         let total = shares.reduce(0) { $0 + $1.amountUSD }
+        let source = CostSource.weakest(shares.map(\.source)) ?? .estimated
         let count = shares.count == 1 ? "One provider" : "\(shares.count) providers"
         let percents = shares.map { "\($0.provider.name) \($0.percent) percent" }.joined(separator: ", ")
-        return "\(count), \(SurgeFormatting.cost(total)) today. \(percents)."
+        let figure = SpendFigure(amountUSD: total, source: source).accessibilityText
+        return "\(count), \(figure) today. \(percents)."
     }
 
     public static func shareSeries(shares: [SpendShare]) -> [ChartSeries] {
@@ -160,7 +177,8 @@ public enum ChartAccessibility {
             ChartDataPoint(
                 position: .category(share.provider.name),
                 value: share.amountUSD,
-                sharePercent: Double(share.percent)
+                sharePercent: Double(share.percent),
+                costSource: share.source
             )
         }
         return [ChartSeries(name: "Spend", isContinuous: false, points: points)]
@@ -256,11 +274,14 @@ public enum ChartAccessibility {
                 isContinuous: series.isContinuous,
                 dataPoints: series.points.map { point in
                     let extra = point.sharePercent.map { [AXDataPoint.Value.number($0)] } ?? []
+                    let label = point.costSource.map {
+                        SpendFigure(amountUSD: point.value, source: $0).accessibilityText
+                    }
                     switch point.position {
                     case .number(let value):
-                        return AXDataPoint(x: value, y: point.value, additionalValues: extra)
+                        return AXDataPoint(x: value, y: point.value, additionalValues: extra, label: label)
                     case .category(let name):
-                        return AXDataPoint(x: name, y: point.value, additionalValues: extra)
+                        return AXDataPoint(x: name, y: point.value, additionalValues: extra, label: label)
                     }
                 }
             )

@@ -15,7 +15,7 @@ struct ChartAccessibilityTests {
             source: .estimated
         )
 
-        #expect(summary == "Today $1.22, estimated. $7.08 over the last 7 days.")
+        #expect(summary == "Today $1.22, estimated. $7.08, estimated over the last 7 days.")
     }
 
     @Test func anEmptySpendWindowSaysSo() {
@@ -38,7 +38,7 @@ struct ChartAccessibilityTests {
             source: .providerReported
         )
 
-        #expect(summary == "Today $1.22, provider reported. $7.08 over the last 7 days.")
+        #expect(summary == "Today $1.22, provider reported. $7.08, provider reported over the last 7 days.")
     }
 
     @Test func theSpendChartHasOneSeriesPerProviderWithItsDays() {
@@ -80,7 +80,7 @@ struct ChartAccessibilityTests {
         )
 
         #expect(descriptor.title == "Daily spend over 7 days")
-        #expect(descriptor.summary == "Today $1.22, estimated. $7.08 over the last 7 days.")
+        #expect(descriptor.summary == "Today $1.22, estimated. $7.08, estimated over the last 7 days.")
 
         let xAxis = try #require(descriptor.xAxis as? AXNumericDataAxisDescriptor)
         #expect(xAxis.title == "Day")
@@ -92,6 +92,19 @@ struct ChartAccessibilityTests {
         #expect(yAxis.range.lowerBound == 0)
         #expect(yAxis.valueDescriptionProvider(1.42) == "$1.42")
         #expect(descriptor.series.map(\.name) == ["Anthropic", "DeepSeek", "OpenRouter"])
+        #expect(descriptor.series[0].dataPoints.first?.label == "$0.42, estimated")
+    }
+
+    @Test func theSpendPointsCarryTheSourceOfTheirAmount() throws {
+        let descriptor = ChartAccessibility.spendDescriptor(
+            days: SurgeFixtures.dailySpend,
+            range: .sevenDays,
+            source: .providerReported,
+            timeZone: utc
+        )
+
+        let first = try #require(descriptor.series.first?.dataPoints.first)
+        #expect(first.label == "$0.42, provider reported")
     }
 
     @Test func theShareSummaryCountsProvidersAndTheirPercentages() {
@@ -102,9 +115,22 @@ struct ChartAccessibilityTests {
 
         #expect(
             ChartAccessibility.shareSummary(shares: SpendShares.make(for: day))
-                == "3 providers, $1.59 today. Anthropic 64 percent, DeepSeek 26 percent, OpenRouter 10 percent."
+                == "3 providers, $1.59, estimated today. Anthropic 64 percent, "
+                + "DeepSeek 26 percent, OpenRouter 10 percent."
         )
         #expect(ChartAccessibility.shareSummary(shares: []) == "No spend today.")
+    }
+
+    @Test func theShareSummaryKeepsTheSourceOfTheBlendedTotal() {
+        let day = DailySpendPoint(
+            date: UITestFixtures.now,
+            spendByProvider: ["anthropic": 1.02, "deepseek": 0.42]
+        )
+
+        #expect(
+            ChartAccessibility.shareSummary(shares: SpendShares.make(for: day, source: .providerReported))
+                == "2 providers, $1.44, provider reported today. Anthropic 71 percent, DeepSeek 29 percent."
+        )
     }
 
     @Test func oneProviderReadsAsSingular() {
@@ -112,7 +138,7 @@ struct ChartAccessibilityTests {
 
         #expect(
             ChartAccessibility.shareSummary(shares: SpendShares.make(for: day))
-                == "One provider, $2.00 today. DeepSeek 100 percent."
+                == "One provider, $2.00, estimated today. DeepSeek 100 percent."
         )
     }
 
@@ -139,6 +165,10 @@ struct ChartAccessibilityTests {
         #expect(xAxis?.categoryOrder == ["Anthropic", "DeepSeek", "OpenRouter"])
         #expect(descriptor.additionalAxes.count == 1)
         #expect(descriptor.title == "Spend by provider today")
+        #expect(
+            descriptor.series[0].dataPoints.map(\.label)
+                == ["$1.02, estimated", "$0.42, estimated", "$0.15, estimated"]
+        )
     }
 
     @Test func anEmptyProviderBarHasNoSeries() {
