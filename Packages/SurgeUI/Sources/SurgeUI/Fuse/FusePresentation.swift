@@ -41,10 +41,6 @@ public struct FusePresentation: Sendable, Equatable {
 
     public var isTripped: Bool { state == .tripped }
 
-    /// A stalled agent's context is not growing, so the fill holds still and the hatch is what
-    /// moves. Every other state lets the fill ease to its new value.
-    public var fillAnimates: Bool { !isTripped }
-
     public init(
         state: FuseState,
         level: ContextLevel?,

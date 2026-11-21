@@ -89,10 +89,10 @@ struct FuseGaugeStyle: GaugeStyle {
         }
     }
 
-    /// The fill eases to a new value only while it is drawn and motion is allowed. It never moves
-    /// under a hatch, and it does not travel at all when Reduce Motion is on.
+    /// The fill eases to a new value and does not travel at all when Reduce Motion is on. While
+    /// the Fuse is tripped the fill view is not built, which is what holds it still.
     private var fillAnimation: Animation? {
-        guard presentation.fillAnimates, !reduceMotion else { return nil }
+        guard !reduceMotion else { return nil }
         return .easeOut(duration: SurgeUIStyle.fuseAnimationDuration)
     }
 

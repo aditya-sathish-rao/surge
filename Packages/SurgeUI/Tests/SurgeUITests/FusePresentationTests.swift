@@ -132,27 +132,24 @@ struct FusePresentationTests {
     }
 
     @Test func theHatchIsOnlyDrawnForAStall() {
-        for state in FuseState.allCases {
+        let cases: [(AgentStatus, Bool)] = [
+            (.working, false),
+            (.waitingForYou, false),
+            (.stalled(since: UITestFixtures.now.addingTimeInterval(-194)), true),
+            (.compacting, false),
+            (.idle(since: UITestFixtures.now.addingTimeInterval(-240)), false),
+            (.done, false),
+            (.noSignal, false),
+        ]
+
+        for (status, tripsTheFuse) in cases {
             let presentation = FusePresentation(
-                state: state,
-                level: .normal,
-                fillRatio: 0.5,
-                label: "50%",
-                contextLabel: "50%",
-                contextClause: "Context 50 percent",
-                accessibilityLabel: "Context 50 percent of 200 thousand tokens"
+                agent: UITestFixtures.agent(status: status, contextTokens: 150_000),
+                now: UITestFixtures.now
             )
 
-            #expect(presentation.isTripped == (state == .tripped))
+            #expect(presentation.isTripped == tripsTheFuse, "\(status)")
         }
-    }
-
-    @Test func theFillStopsOnlyWhileTheHatchIsDrawn() {
-        let stalled = UITestFixtures.agent(status: .stalled(since: UITestFixtures.now), contextTokens: 150_000)
-        #expect(FusePresentation(agent: stalled, now: UITestFixtures.now).fillAnimates == false)
-
-        let working = UITestFixtures.agent(status: .working, contextTokens: 150_000)
-        #expect(FusePresentation(agent: working, now: UITestFixtures.now).fillAnimates)
     }
 
     @Test func recoveryClearsLeftToRight() {
