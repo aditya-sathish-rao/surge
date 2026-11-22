@@ -17,11 +17,15 @@ public struct ChartDataPoint: Sendable, Equatable {
     public let value: Double
     /// A provider's share of today's spend, on the charts that draw a second axis for it.
     public let sharePercent: Double?
+    /// What VoiceOver calls this point: where it sits and, for a dollar figure, how the amount was
+    /// obtained. Nil when the axis descriptions alone name the point.
+    public let label: String?
 
-    public init(position: Position, value: Double, sharePercent: Double? = nil) {
+    public init(position: Position, value: Double, sharePercent: Double? = nil, label: String? = nil) {
         self.position = position
         self.value = value
         self.sharePercent = sharePercent
+        self.label = label
     }
 }
 
@@ -96,16 +100,26 @@ public enum ChartAccessibility {
         return "Today \(today). \(window) \(span)."
     }
 
-    /// One series per provider that has spend, each carrying that provider's days.
-    public static func spendSeries(days: [DailySpendPoint], range: DailySpendRange) -> [ChartSeries] {
+    /// One series per provider that has spend, each carrying that provider's days. Every point is
+    /// called by its day and its own source: today's amount carries the source it was booked with,
+    /// and the days before it carry the conservative reading.
+    public static func spendSeries(
+        days: [DailySpendPoint],
+        range: DailySpendRange,
+        source: CostSource = .estimated,
+        timeZone: TimeZone = .current
+    ) -> [ChartSeries] {
         let visible = visibleDays(days, range: range)
+        let earlierSource = windowSource(source, dayCount: visible.count)
         return Provider.allCases.compactMap { provider in
             let points = visible.compactMap { day -> ChartDataPoint? in
                 let amount = day.spend(for: provider)
                 guard amount > 0 else { return nil }
+                let pointSource = day.date == visible.last?.date ? source : earlierSource
                 return ChartDataPoint(
                     position: .number(day.date.timeIntervalSinceReferenceDate),
-                    value: amount
+                    value: amount,
+                    label: pointLabel(dayText(day.date, timeZone: timeZone), source: pointSource)
                 )
             }
             guard !points.isEmpty else { return nil }
@@ -136,19 +150,16 @@ public enum ChartAccessibility {
             title: "Spend",
             range: 0...max(1, peak * 1.15),
             gridlinePositions: [],
-            valueDescriptionProvider: { value in
-                SpendFigure(
-                    amountUSD: value,
-                    source: windowSource(source, dayCount: visible.count)
-                ).accessibilityText
-            }
+            valueDescriptionProvider: { SurgeFormatting.cost($0) }
         )
         return AXChartDescriptor(
             title: spendTitle(range: range),
             summary: spendSummary(days: days, range: range, source: source),
             xAxis: xAxis,
             yAxis: yAxis,
-            series: seriesDescriptors(spendSeries(days: days, range: range))
+            series: seriesDescriptors(
+                spendSeries(days: days, range: range, source: source, timeZone: timeZone)
+            )
         )
     }
 
@@ -170,7 +181,8 @@ public enum ChartAccessibility {
             ChartDataPoint(
                 position: .category(share.provider.name),
                 value: share.amountUSD,
-                sharePercent: Double(share.percent)
+                sharePercent: Double(share.percent),
+                label: pointLabel(share.provider.name, source: share.source)
             )
         }
         return [ChartSeries(name: "Spend", isContinuous: false, points: points)]
@@ -186,9 +198,7 @@ public enum ChartAccessibility {
             title: "Spend",
             range: 0...max(1, peak),
             gridlinePositions: [],
-            valueDescriptionProvider: { value in
-                SpendFigure(amountUSD: value, source: shareSource(shares)).accessibilityText
-            }
+            valueDescriptionProvider: { SurgeFormatting.cost($0) }
         )
         let shareAxis = AXNumericDataAxisDescriptor(
             title: "Share",
@@ -270,18 +280,33 @@ public enum ChartAccessibility {
                     let extra = point.sharePercent.map { [AXDataPoint.Value.number($0)] } ?? []
                     switch point.position {
                     case .number(let value):
-                        return AXDataPoint(x: value, y: point.value, additionalValues: extra)
+                        return AXDataPoint(
+                            x: value,
+                            y: point.value,
+                            additionalValues: extra,
+                            label: point.label
+                        )
                     case .category(let name):
-                        return AXDataPoint(x: name, y: point.value, additionalValues: extra)
+                        return AXDataPoint(
+                            x: name,
+                            y: point.value,
+                            additionalValues: extra,
+                            label: point.label
+                        )
                     }
                 }
             )
         }
     }
 
-    /// A figure wider than today may never claim a stronger source than the ledger can prove: the
-    /// days before today do not carry their own provenance into this boundary, and the ledger
-    /// reads such history as an estimate.
+    private static func pointLabel(_ positionText: String, source: CostSource) -> String {
+        "\(positionText), \(source.label.lowercased())"
+    }
+
+    /// The weakest source of the given one and the ledger's estimate for history whose provenance
+    /// does not reach this boundary, so a window never claims a stronger source than it can prove.
+    /// An unavailable source passes straight through, because a figure that is unavailable stays
+    /// unavailable however wide the window is.
     private static func windowSource(_ source: CostSource, dayCount: Int) -> CostSource {
         guard dayCount > 1 else { return source }
         return CostSource.weakest([source, .estimated]) ?? .estimated

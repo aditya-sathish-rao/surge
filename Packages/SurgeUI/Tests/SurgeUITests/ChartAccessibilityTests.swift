@@ -101,11 +101,19 @@ struct ChartAccessibilityTests {
         let yAxis = try #require(descriptor.yAxis)
         #expect(yAxis.title == "Spend")
         #expect(yAxis.range.lowerBound == 0)
-        #expect(yAxis.valueDescriptionProvider(1.42) == "$1.42, estimated")
+        #expect(yAxis.valueDescriptionProvider(1.42) == "$1.42")
         #expect(descriptor.series.map(\.name) == ["Anthropic", "DeepSeek", "OpenRouter"])
+        #expect(
+            descriptor.series[0].dataPoints.map(\.label)
+                == [
+                    "Fri, Nov 7, estimated", "Sat, Nov 8, estimated", "Sun, Nov 9, estimated",
+                    "Mon, Nov 10, estimated", "Tue, Nov 11, estimated", "Wed, Nov 12, estimated",
+                    "Thu, Nov 13, estimated",
+                ]
+        )
     }
 
-    @Test func aWindowWiderThanTodayNeverClaimsTodaysSource() throws {
+    @Test func aWindowWiderThanTodayNeverClaimsTodaysSource() {
         let descriptor = ChartAccessibility.spendDescriptor(
             days: SurgeFixtures.dailySpend,
             range: .sevenDays,
@@ -113,9 +121,10 @@ struct ChartAccessibilityTests {
             timeZone: utc
         )
 
-        let yAxis = try #require(descriptor.yAxis)
-        #expect(yAxis.valueDescriptionProvider(0.42) == "$0.42, estimated")
         #expect(descriptor.summary == "Today $1.22, provider reported. $7.08, estimated over the last 7 days.")
+        let labels = descriptor.series[0].dataPoints.map(\.label)
+        #expect(labels.first == "Fri, Nov 7, estimated")
+        #expect(labels.last == "Thu, Nov 13, provider reported")
     }
 
     @Test func theShareSummaryCountsProvidersAndTheirPercentages() {
@@ -176,7 +185,11 @@ struct ChartAccessibilityTests {
         #expect(xAxis?.categoryOrder == ["Anthropic", "DeepSeek", "OpenRouter"])
         #expect(descriptor.additionalAxes.count == 1)
         #expect(descriptor.title == "Spend by provider today")
-        #expect(descriptor.yAxis?.valueDescriptionProvider(1.02) == "$1.02, estimated")
+        #expect(descriptor.yAxis?.valueDescriptionProvider(1.02) == "$1.02")
+        #expect(
+            descriptor.series[0].dataPoints.map(\.label)
+                == ["Anthropic, estimated", "DeepSeek, estimated", "OpenRouter, estimated"]
+        )
     }
 
     @Test func theShareChartValuesKeepTheSourceOfTheShares() {
@@ -184,8 +197,8 @@ struct ChartAccessibilityTests {
         let shares = SpendShares.make(for: day, source: .providerReported)
 
         #expect(
-            ChartAccessibility.shareDescriptor(shares: shares).yAxis?.valueDescriptionProvider(1.02)
-                == "$1.02, provider reported"
+            ChartAccessibility.shareDescriptor(shares: shares).series[0].dataPoints.first?.label
+                == "Anthropic, provider reported"
         )
     }
 
