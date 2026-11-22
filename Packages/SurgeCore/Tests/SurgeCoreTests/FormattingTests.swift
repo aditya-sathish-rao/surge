@@ -70,4 +70,104 @@ struct FormattingTests {
                 spend: SpendFigure(amountUSD: 0, source: .estimated)
             ) == "2 Orchs, 1 Worker, $0.00 est.")
     }
+
+    @Test func menuBarSummaryReadsThePRDShapeWithoutJargon() {
+        #expect(
+            SurgeFormatting.menuBarSummary(
+                orchestrators: 1,
+                workers: 2,
+                spend: SpendFigure(amountUSD: 1.42, source: .estimated)
+            ) == "1 Orch, 2 Workers, $1.42")
+        #expect(
+            SurgeFormatting.menuBarSummary(
+                orchestrators: 2,
+                workers: 1,
+                spend: SpendFigure(amountUSD: 2.10, source: .balanceDerived)
+            ) == "2 Orchs, 1 Worker, $2.10")
+    }
+
+    @Test func menuBarSummaryLeavesOutZeroCountsAndUnreportableSpend() {
+        #expect(
+            SurgeFormatting.menuBarSummary(
+                orchestrators: 4,
+                workers: 0,
+                spend: SpendFigure(amountUSD: 4.58, source: .providerReported)
+            ) == "4 Orchs, $4.58")
+        #expect(
+            SurgeFormatting.menuBarSummary(
+                orchestrators: 3,
+                workers: 0,
+                spend: SpendFigure(amountUSD: 0, source: .estimated)
+            ) == "3 Orchs, $0.00")
+        #expect(
+            SurgeFormatting.menuBarSummary(
+                orchestrators: 0,
+                workers: 0,
+                spend: SpendFigure(amountUSD: 5, source: .providerReported)
+            ) == "$5.00")
+        #expect(
+            SurgeFormatting.menuBarSummary(
+                orchestrators: 0,
+                workers: 0,
+                spend: SpendFigure(amountUSD: 0, source: .estimated)
+            ) == nil)
+        #expect(
+            SurgeFormatting.menuBarSummary(
+                orchestrators: 0,
+                workers: 0,
+                spend: SpendFigure(amountUSD: 0.004, source: .estimated)
+            ) == nil)
+        #expect(
+            SurgeFormatting.menuBarSummary(
+                orchestrators: 1,
+                workers: 0,
+                spend: SpendFigure(amountUSD: 0, source: .unavailable)
+            ) == "1 Orch")
+    }
+
+    @Test func menuBarSpendAppearsOnlyWhenThereIsSomethingToSay() {
+        #expect(
+            !SurgeFormatting.menuBarShowsSpend(
+                agentCount: 0,
+                spend: SpendFigure(amountUSD: 0, source: .estimated)
+            ))
+        #expect(
+            !SurgeFormatting.menuBarShowsSpend(
+                agentCount: 0,
+                spend: SpendFigure(amountUSD: 0.004, source: .estimated)
+            ))
+        #expect(
+            !SurgeFormatting.menuBarShowsSpend(
+                agentCount: 2,
+                spend: SpendFigure(amountUSD: 0, source: .unavailable)
+            ))
+        #expect(
+            SurgeFormatting.menuBarShowsSpend(
+                agentCount: 0,
+                spend: SpendFigure(amountUSD: 5, source: .providerReported)
+            ))
+        #expect(
+            SurgeFormatting.menuBarShowsSpend(
+                agentCount: 2,
+                spend: SpendFigure(amountUSD: 0, source: .estimated)
+            ))
+    }
+
+    @Test func menuBarRunDescriptionAlwaysSpeaksTheAgentCountAndOneAttentionClause() {
+        #expect(SurgeFormatting.menuBarRunDescription(agentCount: 1, attentionCount: 1) == "1 agent needs you")
+        #expect(SurgeFormatting.menuBarRunDescription(agentCount: 5, attentionCount: 1) == "5 agents, 1 needs you")
+        #expect(SurgeFormatting.menuBarRunDescription(agentCount: 6, attentionCount: 2) == "6 agents, 2 need you")
+        #expect(SurgeFormatting.menuBarRunDescription(agentCount: 5, attentionCount: 0) == "5 agents")
+        #expect(SurgeFormatting.menuBarRunDescription(agentCount: 1, attentionCount: 0) == "1 agent")
+        #expect(SurgeFormatting.menuBarRunDescription(agentCount: 0, attentionCount: 0) == "No agents running")
+    }
+
+    @Test func spokenUSDReadsMoneyWithoutPaddedCents() {
+        #expect(SurgeFormatting.spokenUSD(0) == "0 dollars")
+        #expect(SurgeFormatting.spokenUSD(0.01) == "1 cent")
+        #expect(SurgeFormatting.spokenUSD(0.05) == "5 cents")
+        #expect(SurgeFormatting.spokenUSD(1) == "1 dollar")
+        #expect(SurgeFormatting.spokenUSD(16.05) == "16 dollars 5 cents")
+        #expect(SurgeFormatting.spokenUSD(16.91) == "16 dollars 91")
+    }
 }

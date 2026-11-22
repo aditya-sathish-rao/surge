@@ -71,7 +71,7 @@ struct DashboardView: View {
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(
-                "\(MenuBarReadout.spokenUSD(model.todaySpendUSD)) "
+                "\(SurgeFormatting.spokenUSD(model.todaySpendUSD)) "
                     + "\(model.todaySpendSource.label.lowercased()) spent today"
             )
         }
