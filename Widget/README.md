@@ -30,8 +30,8 @@ logic in `SurgeWidget/Logic/` is tested through the package next to it:
 swift test --package-path Widget --scratch-path build/widget-tests
 ```
 
-Keep the scratch path under `build/`. It is gitignored and outside the paths `make lint` walks;
-the default `Widget/.build` would be picked up by that scan.
+Keep the scratch path under `build/`, the repository's one build directory: it is gitignored and
+excluded from `make lint`, so test scratch output never lands in the tree or the lint scan.
 
 ## Seeing it
 
