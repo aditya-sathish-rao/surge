@@ -36,27 +36,35 @@ public enum SurgeFormatting {
         return "\(seconds / 3600)h"
     }
 
+    /// The PRD's word for a state, with no elapsed time. Surfaces that let a system timer count the
+    /// elapsed time themselves show this rather than a label with the time already in it.
+    public static func statusWord(_ status: AgentStatus) -> String {
+        switch status {
+        case .working: "Working"
+        case .waitingForYou: "Waiting for you"
+        case .stalled: "Stalled"
+        case .compacting: "Compacting"
+        case .idle: "Idle"
+        case .done: "Done"
+        case .noSignal: "No signal"
+        }
+    }
+
     public static func statusLabel(
         _ status: AgentStatus,
         now: Date,
         lastActivityAt: Date? = nil
     ) -> String {
         switch status {
-        case .working:
-            return "Working"
-        case .waitingForYou:
-            return "Waiting for you"
         case .stalled(let since):
-            return "Stalled \(duration(since: since, now: now))"
-        case .compacting:
-            return "Compacting"
+            return "\(statusWord(status)) \(duration(since: since, now: now))"
         case .idle(let since):
-            return "Idle \(minutesDuration(since: since, now: now))"
+            return "\(statusWord(status)) \(minutesDuration(since: since, now: now))"
         case .done:
-            guard let lastActivityAt else { return "Done" }
-            return "Done · \(minutesDuration(since: lastActivityAt, now: now))"
-        case .noSignal:
-            return "No signal"
+            guard let lastActivityAt else { return statusWord(status) }
+            return "\(statusWord(status)) · \(minutesDuration(since: lastActivityAt, now: now))"
+        default:
+            return statusWord(status)
         }
     }
 

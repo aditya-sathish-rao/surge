@@ -97,7 +97,7 @@ Thresholds to encode as named constants: context high 70 percent, near limit 90 
 
 ## Ask the user before deciding
 
-- Nothing on colours or typeface. Both are decided: take the palette and rules from the design file (Color and Type sections). Reference study values: lime #DFE301, green #03C37B, magenta #FF79FB, violet #A86BD6 identify providers, and orange #FFAA4F and coral #FF7D6B are status only. Use Inter Tight now. Tokens make the Beausite swap one change.
+- Nothing on colours or typeface. Both are decided: take the palette and rules from the design file (Color and Type sections). Reference study values: lime #DFE301, green #03C37B, magenta #FF79FB, violet #A86BD6 identify providers, and orange #FFAA4F and coral #FF7D6B are status only. Use the `SurgeTypography` family tokens now, which name Geist (see `README.md`). Tokens make the Beausite swap one change.
 - Which Claude models go in the real pricing table beyond the three examples in the TRD, and their prices.
 - Whether `provider` stays a `String` as in the blueprint or becomes the `Provider` enum the TRD also names.
 

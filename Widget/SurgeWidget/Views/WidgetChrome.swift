@@ -19,7 +19,7 @@ struct WidgetHeaderRow: View {
         HStack(spacing: 4) {
             Text(title)
                 .font(WidgetStyle.heading)
-                .foregroundStyle(SurgeInk.tertiary(contrastLevel))
+                .foregroundStyle(SurgeInk.secondary(contrastLevel))
                 .lineLimit(1)
             Spacer(minLength: 4)
             if needsYou > 0 {

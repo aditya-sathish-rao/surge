@@ -54,19 +54,11 @@ public enum WidgetFreshness {
     }
 }
 
-/// The status word a widget row can fit beside its Fuse. The full sentence stays in the row's
-/// VoiceOver label, and stalled and idle rows let the system timer count for them.
+/// The word a widget row shows beside its Fuse: the PRD's state labels, with stalled and idle rows
+/// letting the system timer count for them. The words themselves belong to `SurgeFormatting`.
 public enum WidgetStatusWording {
-    public static func short(_ status: AgentStatus) -> String {
-        switch status {
-        case .working: "Working"
-        case .waitingForYou: "Waiting"
-        case .compacting: "Compacting"
-        case .stalled: "Stalled"
-        case .idle: "Idle"
-        case .done: "Done"
-        case .noSignal: "No signal"
-        }
+    public static func label(_ status: AgentStatus) -> String {
+        SurgeFormatting.statusWord(status)
     }
 }
 
@@ -96,7 +88,13 @@ public enum WidgetHeader {
 
     /// "+1 waiting for you" in the design system; pluralised without inventing a new word.
     public static func othersNeeding(_ count: Int) -> String {
-        count == 1 ? "+1 more needs you" : "+\(count) more need you"
+        "+\(count) waiting for you"
+    }
+
+    /// The spoken form of the "+2 waiting for you" line, which is a sentence where the visible line
+    /// is a fragment.
+    public static func othersNeedingVoiceOver(_ count: Int) -> String {
+        count == 1 ? "1 more agent is waiting for you." : "\(count) more agents are waiting for you."
     }
 
     /// The line under a tree that had more rows than the widget could draw.
@@ -114,6 +112,15 @@ public enum WidgetHeader {
         guard working > 0 else { return "nothing working" }
         let workspaces = workspaceCount == 1 ? "1 workspace" : "\(workspaceCount) workspaces"
         return "working · \(workspaces)"
+    }
+
+    /// The calm readout as one spoken sentence. The number and the caption under it are one fact, so
+    /// VoiceOver hears them once rather than twice.
+    public static func calmVoiceOver(working: Int, workspaceCount: Int) -> String {
+        guard working > 0 else { return "No agents working" }
+        let agents = working == 1 ? "1 agent working" : "\(working) agents working"
+        let workspaces = workspaceCount == 1 ? "1 workspace" : "\(workspaceCount) workspaces"
+        return "\(agents) in \(workspaces)"
     }
 }
 

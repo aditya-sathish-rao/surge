@@ -4,6 +4,7 @@ included:
   - Widget
 excluded:
   - "**/.build"
+  - "**/build"
 disabled_rules:
   - trailing_comma
 line_length:

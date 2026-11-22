@@ -1,5 +1,5 @@
 PACKAGES := SurgeCore SurgeIngestTailer SurgeIngestProxy SurgeWallets SurgeUI SurgeStateStore
-FORMAT_PATHS := App Widget Packages/*/Sources Packages/*/Tests Packages/*/Package.swift
+FORMAT_PATHS := App/SurgeMenuBarApp Widget/SurgeWidget Widget/SurgeWidgetTests Widget/Package.swift Packages/*/Sources Packages/*/Tests Packages/*/Package.swift
 APP := build/Build/Products/Debug/Surge.app
 
 .PHONY: project build run stop test lint format
