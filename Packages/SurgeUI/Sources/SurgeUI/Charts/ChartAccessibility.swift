@@ -17,20 +17,11 @@ public struct ChartDataPoint: Sendable, Equatable {
     public let value: Double
     /// A provider's share of today's spend, on the charts that draw a second axis for it.
     public let sharePercent: Double?
-    /// How the value was obtained, when the value is a dollar figure. Nil for a measurement such
-    /// as tokens per second. The number is never spoken without it.
-    public let costSource: CostSource?
 
-    public init(
-        position: Position,
-        value: Double,
-        sharePercent: Double? = nil,
-        costSource: CostSource? = nil
-    ) {
+    public init(position: Position, value: Double, sharePercent: Double? = nil) {
         self.position = position
         self.value = value
         self.sharePercent = sharePercent
-        self.costSource = costSource
     }
 }
 
@@ -97,17 +88,16 @@ public enum ChartAccessibility {
             return "No spend recorded in the last \(range.dayCount) days."
         }
         let today = SpendFigure(amountUSD: last.totalUSD, source: source).accessibilityText
-        let window = SpendFigure(amountUSD: total, source: source).accessibilityText
+        let window = SpendFigure(
+            amountUSD: total,
+            source: windowSource(source, dayCount: visible.count)
+        ).accessibilityText
         let span = visible.count == 1 ? "today" : "over the last \(visible.count) days"
         return "Today \(today). \(window) \(span)."
     }
 
     /// One series per provider that has spend, each carrying that provider's days.
-    public static func spendSeries(
-        days: [DailySpendPoint],
-        range: DailySpendRange,
-        source: CostSource = .estimated
-    ) -> [ChartSeries] {
+    public static func spendSeries(days: [DailySpendPoint], range: DailySpendRange) -> [ChartSeries] {
         let visible = visibleDays(days, range: range)
         return Provider.allCases.compactMap { provider in
             let points = visible.compactMap { day -> ChartDataPoint? in
@@ -115,8 +105,7 @@ public enum ChartAccessibility {
                 guard amount > 0 else { return nil }
                 return ChartDataPoint(
                     position: .number(day.date.timeIntervalSinceReferenceDate),
-                    value: amount,
-                    costSource: source
+                    value: amount
                 )
             }
             guard !points.isEmpty else { return nil }
@@ -147,14 +136,19 @@ public enum ChartAccessibility {
             title: "Spend",
             range: 0...max(1, peak * 1.15),
             gridlinePositions: [],
-            valueDescriptionProvider: { SurgeFormatting.cost($0) }
+            valueDescriptionProvider: { value in
+                SpendFigure(
+                    amountUSD: value,
+                    source: windowSource(source, dayCount: visible.count)
+                ).accessibilityText
+            }
         )
         return AXChartDescriptor(
             title: spendTitle(range: range),
             summary: spendSummary(days: days, range: range, source: source),
             xAxis: xAxis,
             yAxis: yAxis,
-            series: seriesDescriptors(spendSeries(days: days, range: range, source: source))
+            series: seriesDescriptors(spendSeries(days: days, range: range))
         )
     }
 
@@ -164,10 +158,9 @@ public enum ChartAccessibility {
     public static func shareSummary(shares: [SpendShare]) -> String {
         guard !shares.isEmpty else { return "No spend today." }
         let total = shares.reduce(0) { $0 + $1.amountUSD }
-        let source = CostSource.weakest(shares.map(\.source)) ?? .estimated
         let count = shares.count == 1 ? "One provider" : "\(shares.count) providers"
         let percents = shares.map { "\($0.provider.name) \($0.percent) percent" }.joined(separator: ", ")
-        let figure = SpendFigure(amountUSD: total, source: source).accessibilityText
+        let figure = SpendFigure(amountUSD: total, source: shareSource(shares)).accessibilityText
         return "\(count), \(figure) today. \(percents)."
     }
 
@@ -177,8 +170,7 @@ public enum ChartAccessibility {
             ChartDataPoint(
                 position: .category(share.provider.name),
                 value: share.amountUSD,
-                sharePercent: Double(share.percent),
-                costSource: share.source
+                sharePercent: Double(share.percent)
             )
         }
         return [ChartSeries(name: "Spend", isContinuous: false, points: points)]
@@ -194,7 +186,9 @@ public enum ChartAccessibility {
             title: "Spend",
             range: 0...max(1, peak),
             gridlinePositions: [],
-            valueDescriptionProvider: { SurgeFormatting.cost($0) }
+            valueDescriptionProvider: { value in
+                SpendFigure(amountUSD: value, source: shareSource(shares)).accessibilityText
+            }
         )
         let shareAxis = AXNumericDataAxisDescriptor(
             title: "Share",
@@ -217,7 +211,7 @@ public enum ChartAccessibility {
     /// "Now 118 tok/s, 18% above your 30-minute average."
     public static func throughputSummary(samples: [ThroughputSample]) -> String {
         let summary = ThroughputSummary(samples: samples)
-        guard summary.currentTokensPerSecond > 0 else {
+        guard summary.averageTokensPerSecond > 0 else {
             return "No tokens per second recorded in the last 30 minutes."
         }
         let caption = summary.caption.prefix(1).lowercased() + summary.caption.dropFirst()
@@ -274,18 +268,28 @@ public enum ChartAccessibility {
                 isContinuous: series.isContinuous,
                 dataPoints: series.points.map { point in
                     let extra = point.sharePercent.map { [AXDataPoint.Value.number($0)] } ?? []
-                    let label = point.costSource.map {
-                        SpendFigure(amountUSD: point.value, source: $0).accessibilityText
-                    }
                     switch point.position {
                     case .number(let value):
-                        return AXDataPoint(x: value, y: point.value, additionalValues: extra, label: label)
+                        return AXDataPoint(x: value, y: point.value, additionalValues: extra)
                     case .category(let name):
-                        return AXDataPoint(x: name, y: point.value, additionalValues: extra, label: label)
+                        return AXDataPoint(x: name, y: point.value, additionalValues: extra)
                     }
                 }
             )
         }
+    }
+
+    /// A figure wider than today may never claim a stronger source than the ledger can prove: the
+    /// days before today do not carry their own provenance into this boundary, and the ledger
+    /// reads such history as an estimate.
+    private static func windowSource(_ source: CostSource, dayCount: Int) -> CostSource {
+        guard dayCount > 1 else { return source }
+        return CostSource.weakest([source, .estimated]) ?? .estimated
+    }
+
+    /// The weakest source behind the shares, which is what the blended total can prove.
+    private static func shareSource(_ shares: [SpendShare]) -> CostSource {
+        CostSource.weakest(shares.map(\.source)) ?? .estimated
     }
 }
 

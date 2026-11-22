@@ -31,14 +31,25 @@ struct ChartAccessibilityTests {
         )
     }
 
-    @Test func theSpendSummaryCarriesTheSourceOfTodaysFigure() {
+    @Test func theSpendSummaryLabelsTodayAndNeverClaimsMoreForTheWindow() {
         let summary = ChartAccessibility.spendSummary(
             days: SurgeFixtures.dailySpend,
             range: .sevenDays,
             source: .providerReported
         )
 
-        #expect(summary == "Today $1.22, provider reported. $7.08, provider reported over the last 7 days.")
+        #expect(summary == "Today $1.22, provider reported. $7.08, estimated over the last 7 days.")
+    }
+
+    @Test func aWindowOfTodayAloneKeepsTodaysSource() {
+        let today = DailySpendPoint(date: UITestFixtures.now, spendByProvider: ["anthropic": 2])
+        let summary = ChartAccessibility.spendSummary(
+            days: [today],
+            range: .sevenDays,
+            source: .providerReported
+        )
+
+        #expect(summary == "Today $2.00, provider reported. $2.00, provider reported today.")
     }
 
     @Test func theSpendChartHasOneSeriesPerProviderWithItsDays() {
@@ -90,12 +101,11 @@ struct ChartAccessibilityTests {
         let yAxis = try #require(descriptor.yAxis)
         #expect(yAxis.title == "Spend")
         #expect(yAxis.range.lowerBound == 0)
-        #expect(yAxis.valueDescriptionProvider(1.42) == "$1.42")
+        #expect(yAxis.valueDescriptionProvider(1.42) == "$1.42, estimated")
         #expect(descriptor.series.map(\.name) == ["Anthropic", "DeepSeek", "OpenRouter"])
-        #expect(descriptor.series[0].dataPoints.first?.label == "$0.42, estimated")
     }
 
-    @Test func theSpendPointsCarryTheSourceOfTheirAmount() throws {
+    @Test func aWindowWiderThanTodayNeverClaimsTodaysSource() throws {
         let descriptor = ChartAccessibility.spendDescriptor(
             days: SurgeFixtures.dailySpend,
             range: .sevenDays,
@@ -103,8 +113,9 @@ struct ChartAccessibilityTests {
             timeZone: utc
         )
 
-        let first = try #require(descriptor.series.first?.dataPoints.first)
-        #expect(first.label == "$0.42, provider reported")
+        let yAxis = try #require(descriptor.yAxis)
+        #expect(yAxis.valueDescriptionProvider(0.42) == "$0.42, estimated")
+        #expect(descriptor.summary == "Today $1.22, provider reported. $7.08, estimated over the last 7 days.")
     }
 
     @Test func theShareSummaryCountsProvidersAndTheirPercentages() {
@@ -165,9 +176,16 @@ struct ChartAccessibilityTests {
         #expect(xAxis?.categoryOrder == ["Anthropic", "DeepSeek", "OpenRouter"])
         #expect(descriptor.additionalAxes.count == 1)
         #expect(descriptor.title == "Spend by provider today")
+        #expect(descriptor.yAxis?.valueDescriptionProvider(1.02) == "$1.02, estimated")
+    }
+
+    @Test func theShareChartValuesKeepTheSourceOfTheShares() {
+        let day = DailySpendPoint(date: UITestFixtures.now, spendByProvider: ["anthropic": 1.02])
+        let shares = SpendShares.make(for: day, source: .providerReported)
+
         #expect(
-            descriptor.series[0].dataPoints.map(\.label)
-                == ["$1.02, estimated", "$0.42, estimated", "$0.15, estimated"]
+            ChartAccessibility.shareDescriptor(shares: shares).yAxis?.valueDescriptionProvider(1.02)
+                == "$1.02, provider reported"
         )
     }
 
@@ -190,6 +208,17 @@ struct ChartAccessibilityTests {
         #expect(
             ChartAccessibility.throughputSummary(samples: [])
                 == "No tokens per second recorded in the last 30 minutes."
+        )
+        #expect(
+            ChartAccessibility.throughputSummary(samples: samples([0, 0, 0]))
+                == "No tokens per second recorded in the last 30 minutes."
+        )
+    }
+
+    @Test func aQuietChartKeepsItsHistoryInsteadOfSayingNoData() {
+        #expect(
+            ChartAccessibility.throughputSummary(samples: samples([120, 100, 0]))
+                == "Now 0 tok/s, 100% below your 30-minute average."
         )
     }
 
