@@ -40,8 +40,11 @@ public struct PillTabs: View {
             default: break
             }
         }
+        // The tab bar trait makes VoiceOver announce the three pills as one tab group. Each pill
+        // says "tab, 1 of 3" from its own label plus the selected trait; the macOS 14 SDK has no
+        // per-tab role to add.
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Tabs")
+        .accessibilityAddTraits(.isTabBar)
     }
 
     private func tabButton(_ tab: SurgeTab) -> some View {
