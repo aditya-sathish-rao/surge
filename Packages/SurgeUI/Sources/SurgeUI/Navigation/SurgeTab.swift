@@ -16,7 +16,7 @@ public enum SurgeTab: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// One-based position, used by the tab group's VoiceOver label.
+    /// One-based position, used by the tab's own VoiceOver label.
     public var position: Int {
         (Self.allCases.firstIndex(of: self) ?? 0) + 1
     }

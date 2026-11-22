@@ -40,8 +40,9 @@ public struct PillTabs: View {
             default: break
             }
         }
-        // A tab group rather than a plain container, so VoiceOver announces the three pills as a
-        // tab group and each one as a tab with its position and its selected state.
+        // The tab bar trait makes VoiceOver announce the three pills as one tab group. Each pill
+        // says "tab, 1 of 3" from its own label plus the selected trait; the macOS 14 SDK has no
+        // per-tab role to add.
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isTabBar)
     }
