@@ -30,8 +30,7 @@ struct MenuBarReadout: Equatable {
     }
 
     /// The whole label: the counts, the spend, and how many agents need the user in front of them.
-    /// Nil when there is nothing worth saying, so the item stays a bare glyph instead of reading
-    /// "0 Orchs, 0 Workers, $0.00".
+    /// Nil when there is nothing worth saying, so the item stays a bare glyph.
     var text: String? {
         guard
             let summary = SurgeFormatting.menuBarSummary(
